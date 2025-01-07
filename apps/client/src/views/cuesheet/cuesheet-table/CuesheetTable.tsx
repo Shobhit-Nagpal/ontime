@@ -1,30 +1,14 @@
 import { useRef } from 'react';
-import { Menu } from '@chakra-ui/react';
-import { ColumnDef, flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
-import Color from 'color';
-import {
-  isOntimeBlock,
-  isOntimeDelay,
-  isOntimeEvent,
-  MaybeString,
-  OntimeEvent,
-  OntimeRundown,
-  OntimeRundownEntry,
-  TimeField,
-} from 'ontime-types';
+import { ColumnDef, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { isOntimeEvent, MaybeString, OntimeEvent, OntimeRundown, OntimeRundownEntry, TimeField } from 'ontime-types';
 
 import { useEventAction } from '../../../common/hooks/useEventAction';
 import useFollowComponent from '../../../common/hooks/useFollowComponent';
-import { useSelectedEventId } from '../../../common/hooks/useSocket';
-import { getAccessibleColour } from '../../../common/utils/styleUtils';
 import { useCuesheetOptions } from '../cuesheet.options';
 
-import BlockRow from './cuesheet-table-elements/BlockRow';
+import CuesheetBody from './cuesheet-table-elements/CuesheetBody';
 import CuesheetHeader from './cuesheet-table-elements/CuesheetHeader';
-import DelayRow from './cuesheet-table-elements/DelayRow';
-import EventRow from './cuesheet-table-elements/EventRow';
 import CuesheetTableSettings from './cuesheet-table-settings/CuesheetTableSettings';
-import CuesheetTableMenu from './CuesheetTableMenu';
 import useColumnManager from './useColumnManager';
 
 import style from './CuesheetTable.module.scss';
@@ -39,8 +23,7 @@ export default function CuesheetTable(props: CuesheetTableProps) {
   const { data, columns, showModal } = props;
 
   const { updateEvent, updateTimer } = useEventAction();
-  const { selectedEventId } = useSelectedEventId();
-  const { followSelected, hideDelays, hidePast, showDelayedTimes, hideTableSeconds } = useCuesheetOptions();
+  const { followSelected, showDelayedTimes, hideTableSeconds } = useCuesheetOptions();
   const { columnVisibility, columnOrder, columnSizing, resetColumnOrder, setColumnVisibility, setColumnSizing } =
     useColumnManager(columns);
 
@@ -105,10 +88,6 @@ export default function CuesheetTable(props: CuesheetTableProps) {
   const rowModel = table.getRowModel();
   const allLeafColumns = table.getAllLeafColumns();
 
-  let eventIndex = 0;
-  // for the first event, it will be past if there is something selected
-  let isPast = Boolean(selectedEventId);
-
   return (
     <>
       <CuesheetTableSettings
@@ -120,76 +99,7 @@ export default function CuesheetTable(props: CuesheetTableProps) {
       <div ref={tableContainerRef} className={style.cuesheetContainer}>
         <table className={style.cuesheet} id='cuesheet'>
           <CuesheetHeader headerGroups={headerGroups} />
-          <tbody>
-            {rowModel.rows.map((row, index) => {
-              const key = row.original.id;
-              const isSelected = selectedEventId === key;
-              const entry = row.original;
-              if (isSelected) {
-                isPast = false;
-              }
-
-              if (isOntimeBlock(entry)) {
-                return <BlockRow key={key} title={entry.title} hidePast={isPast && hidePast} />;
-              }
-              if (isOntimeDelay(entry)) {
-                if (isPast && hidePast) {
-                  return null;
-                }
-                const delayVal = entry.duration;
-                if (hideDelays || delayVal === 0) {
-                  return null;
-                }
-
-                return <DelayRow key={key} duration={delayVal} />;
-              }
-              if (isOntimeEvent(entry)) {
-                eventIndex++;
-                const isSelected = key === selectedEventId;
-
-                if (isPast && hidePast) {
-                  return null;
-                }
-
-                let rowBgColour: string | undefined;
-                if (isSelected) {
-                  rowBgColour = '#D20300'; // $red-700
-                } else if (entry.colour) {
-                  try {
-                    // the colour is user defined and might be invalid
-                    const accessibleBackgroundColor = Color(getAccessibleColour(entry.colour).backgroundColor);
-                    rowBgColour = accessibleBackgroundColor.fade(0.75).hexa();
-                  } catch (_error) {
-                    /* we do not handle errors here */
-                  }
-                }
-
-                return (
-                  <Menu key={key} variant='ontime-on-dark' size='sm' isLazy>
-                    <EventRow
-                      eventIndex={eventIndex}
-                      isPast={isPast}
-                      selectedRef={isSelected ? selectedRef : undefined}
-                      skip={entry.skip}
-                      colour={entry.colour}
-                    >
-                      {row.getVisibleCells().map((cell) => {
-                        return (
-                          <td key={cell.id} style={{ width: cell.column.getSize(), backgroundColor: rowBgColour }}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        );
-                      })}
-                    </EventRow>
-                    <CuesheetTableMenu event={entry} entryIndex={index} showModal={showModal} />
-                  </Menu>
-                );
-              }
-
-              // currently there is no scenario where entryType is not handled above, either way...
-              return null;
-            })}
-          </tbody>
+          <CuesheetBody rowModel={rowModel} showModal={showModal} />
         </table>
       </div>
     </>
