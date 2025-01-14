@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { IconButton, Modal, ModalContent, ModalOverlay, useDisclosure } from '@chakra-ui/react';
 import { IoApps } from '@react-icons/all-files/io5/IoApps';
@@ -29,6 +29,7 @@ export default function CuesheetPage() {
   const { isOpen: isMenuOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isEventEditorOpen, onOpen: onEventEditorOpen, onClose: onEventEditorClose } = useDisclosure();
   const [eventId, setEventId] = useState<string | null>(null);
+  const [statefulEntries, setStatefulEntries] = useState(flatRundown);
 
   const columns = useMemo(() => makeCuesheetColumns(customFields), [customFields]);
 
@@ -55,6 +56,11 @@ export default function CuesheetPage() {
     },
     [onEventEditorClose, onEventEditorOpen],
   );
+
+// set state copy when data loads
+  useEffect(() => {
+    setStatefulEntries(flatRundown);
+  }, [flatRundown]);
 
   if (!customFields || !flatRundown) {
     return <EmptyPage text='Loading...' />;
@@ -88,8 +94,8 @@ export default function CuesheetPage() {
           />
         </CuesheetOverview>
         <CuesheetProgress />
-        <CuesheetDnd columns={columns}>
-          <CuesheetTable data={flatRundown} columns={columns} showModal={setShowModal} />
+        <CuesheetDnd columns={columns} setStatefulEntries={setStatefulEntries}>
+          <CuesheetTable data={statefulEntries} columns={columns} showModal={setShowModal} />
         </CuesheetDnd>
       </div>
     </>
