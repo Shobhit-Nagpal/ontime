@@ -73,7 +73,7 @@ function EventRow(props: EventRowProps) {
       ref={selectedRef ?? ownRef}
     >
       {showActionMenu && (
-        <td className={style.actionColumn}>
+        <td className={style.actionColumn} tabIndex={-1} role='cell'>
           <IconButton
             aria-label='Options'
             onClick={(event) => {
@@ -87,7 +87,7 @@ function EventRow(props: EventRowProps) {
         </td>
       )}
       {!hideIndexColumn && (
-        <td className={style.indexColumn} style={{ backgroundColor, color: mutedText }}>
+        <td className={style.indexColumn} style={{ backgroundColor, color: mutedText }} tabIndex={-1} role='cell'>
           {eventIndex}
         </td>
       )}
@@ -97,7 +97,12 @@ function EventRow(props: EventRowProps) {
             ?.getVisibleCells()
             .map((cell) => {
               return (
-                <td key={cell.id} style={{ width: cell.column.getSize(), backgroundColor: rowBgColour }}>
+                <td
+                  key={cell.id}
+                  style={{ width: cell.column.getSize(), backgroundColor: rowBgColour }}
+                  tabIndex={-1}
+                  role='cell'
+                >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               );

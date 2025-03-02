@@ -17,6 +17,7 @@ export default function useReactiveTextInput(
     submitOnCtrlEnter?: boolean;
     onCancelUpdate?: () => void;
     allowSubmitSameValue?: boolean;
+    allowKeyboardNavigation?: boolean;
   },
 ): UseReactiveTextInputReturn {
   const [text, setText] = useState<string>(initialText);
@@ -58,7 +59,14 @@ export default function useReactiveTextInput(
           setText(cleanVal);
         }
       }
-      setTimeout(() => ref.current?.blur()); // Immediate timeout to ensure text is set before bluring
+
+      setTimeout(() => {
+        if (options?.allowKeyboardNavigation) {
+          ref.current?.parentElement?.focus(); // Focus on parent element to continue keyboard navigation
+        } else {
+          ref.current?.blur();
+        }
+      }); // Immediate timeout to ensure text is set before bluring
     },
     [initialText, options, ref, submitCallback],
   );
@@ -84,7 +92,17 @@ export default function useReactiveTextInput(
     if (options?.submitOnCtrlEnter) {
       hotKeys.push(['mod + Enter', () => handleSubmit(text)]);
     }
-    return getHotkeyHandler(hotKeys);
+
+    const hotKeyHandler = getHotkeyHandler(hotKeys);
+
+    return (event: KeyboardEvent<HTMLElement>) => {
+      // Stop propagation to move left/right within input
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.stopPropagation();
+      }
+
+      hotKeyHandler(event);
+    };
   }, [handleEscape, handleSubmit, options?.submitOnCtrlEnter, options?.submitOnEnter, text]);
 
   return {
