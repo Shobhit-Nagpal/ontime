@@ -1,23 +1,43 @@
 import { useEffect, useState } from 'react';
 import Editor from 'react-simple-code-editor';
-import Prism from 'prismjs';
+import { BundledLanguage, BundledTheme, createHighlighter, HighlighterGeneric } from 'shiki';
 
-import 'prismjs/components/prism-json';
-
-import 'prismjs/components/prism-css';
-import 'prismjs/themes/prism-funky.min.css';
 import style from './StyleEditor.module.scss';
 
-const CodeEditor = ({ language = 'css', initialValue = '', onChange }) => {
+interface CodeEditorProps {
+  language: string;
+  initialValue: string;
+  onChange: (value: string) => void;
+}
+
+const CodeEditor = ({ language = 'css', initialValue = '', onChange }: CodeEditorProps) => {
+  const [highlighter, setHighlighter] = useState<HighlighterGeneric<BundledLanguage, BundledTheme> | null>(null);
   const [code, setCode] = useState(initialValue);
+
+  useEffect(() => {
+    async function initializeHighlighter() {
+      const highlighter = await createHighlighter({
+        themes: ['vitesse-dark'],
+        langs: [language],
+      });
+
+      setHighlighter(highlighter);
+    }
+
+    initializeHighlighter();
+  }, []);
 
   useEffect(() => {
     setCode(initialValue);
   }, [initialValue]);
 
   const highlight = (code: string) => {
-    const grammar = Prism.languages[language];
-    return grammar ? Prism.highlight(code, grammar, language) : code;
+    return highlighter
+      ? highlighter.codeToHtml(code, {
+          theme: 'vitesse-dark',
+          lang: language,
+        })
+      : code;
   };
 
   const handleChange = (newCode: string) => {
