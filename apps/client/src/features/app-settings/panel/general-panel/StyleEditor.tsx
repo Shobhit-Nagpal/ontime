@@ -36,6 +36,13 @@ const CodeEditor = ({ language = 'css', initialValue = '', onChange }: CodeEdito
       ? highlighter.codeToHtml(code, {
           theme: 'vitesse-dark',
           lang: language,
+          transformers: [
+            {
+              code(node) {
+                node.properties.style = 'white-space: pre-wrap;';
+              },
+            },
+          ],
         })
       : code;
   };

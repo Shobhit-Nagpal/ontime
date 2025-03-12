@@ -117,6 +117,9 @@ export default function ViewSettingsForm() {
           <Panel.Loader isLoading={isLoading} />
           <Panel.ListGroup>
             <CodeEditor onChange={console.log} initialValue={css} language='css' />
+            <Button isLoading={isSubmitting} isDisabled={!isDirty} variant='ontime-filled' size='sm'>
+              Save CSS
+            </Button>
             <Panel.ListItem>
               <Panel.Field
                 title='Override CSS styles'
