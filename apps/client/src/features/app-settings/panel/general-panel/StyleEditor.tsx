@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Editor from 'react-simple-code-editor';
-import { BundledLanguage, BundledTheme, createHighlighter, HighlighterGeneric } from 'shiki';
+import { createHighlighter, Highlighter } from './shiki.bundle';
 
 import style from './StyleEditor.module.scss';
 
@@ -11,7 +11,7 @@ interface CodeEditorProps {
 }
 
 const CodeEditor = ({ language = 'css', initialValue = '', onChange }: CodeEditorProps) => {
-  const [highlighter, setHighlighter] = useState<HighlighterGeneric<BundledLanguage, BundledTheme> | null>(null);
+  const [highlighter, setHighlighter] = useState<Highlighter | null>(null);
   const [code, setCode] = useState(initialValue);
 
   useEffect(() => {
