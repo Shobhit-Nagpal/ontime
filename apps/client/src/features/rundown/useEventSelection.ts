@@ -1,8 +1,7 @@
 import { MouseEvent } from 'react';
-import { isOntimeEvent, MaybeNumber, MaybeString, OntimeEvent, RundownCached } from 'ontime-types';
+import { isOntimeEvent, MaybeNumber, MaybeString, OntimeEvent, RUNDOWN, RundownCached } from 'ontime-types';
 import { create } from 'zustand';
 
-import { RUNDOWN } from '../../common/api/constants';
 import { ontimeQueryClient } from '../../common/queryClient';
 import { isMacOS } from '../../common/utils/deviceUtils';
 

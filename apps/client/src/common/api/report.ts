@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { OntimeReport } from 'ontime-types';
+import { OntimeReport, REPORT } from 'ontime-types';
 
 import { ontimeQueryClient } from '../../common/queryClient';
 
-import { apiEntryUrl, REPORT } from './constants';
+import { apiEntryUrl } from './constants';
 
 export const reportUrl = `${apiEntryUrl}/report`;
 

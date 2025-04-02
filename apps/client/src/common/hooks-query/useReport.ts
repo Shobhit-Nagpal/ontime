@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { OntimeReport } from 'ontime-types';
+import { OntimeReport, REPORT } from 'ontime-types';
 import { MILLIS_PER_HOUR } from 'ontime-utils';
 
-import { REPORT } from '../api/constants';
 import { fetchReport } from '../api/report';
 
 export default function useReport() {

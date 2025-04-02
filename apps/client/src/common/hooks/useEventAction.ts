@@ -6,6 +6,7 @@ import {
   OntimeDelay,
   OntimeEvent,
   OntimeRundownEntry,
+  RUNDOWN,
   RundownCached,
   TimeField,
   TimeStrategy,
@@ -13,7 +14,6 @@ import {
 } from 'ontime-types';
 import { dayInMs, MILLIS_PER_SECOND, parseUserTime, reorderArray, swapEventData } from 'ontime-utils';
 
-import { RUNDOWN } from '../api/constants';
 import {
   ReorderEntry,
   requestApplyDelay,

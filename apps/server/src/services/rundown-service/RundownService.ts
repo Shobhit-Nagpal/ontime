@@ -11,6 +11,7 @@ import {
   OntimeRundown,
   PatchWithId,
   EventPostPayload,
+  RUNDOWN,
 } from 'ontime-types';
 import { getCueCandidate } from 'ontime-utils';
 
@@ -266,7 +267,7 @@ function notifyChanges(options: NotifyChangesOptions) {
   if (options.external) {
     // advice socket subscribers of change
     const payload = {
-      target: 'RUNDOWN',
+      target: RUNDOWN,
       changes: Array.isArray(options.timer) ? options.timer : undefined,
       reload: options.reload,
       revision: cache.getMetadata().revision,

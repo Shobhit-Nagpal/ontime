@@ -1,7 +1,7 @@
-import { Log, RundownCached, RuntimeStore } from 'ontime-types';
+import type { Log, RundownCached, RuntimeStore } from 'ontime-types';
+import { CLIENT_LIST, CUSTOM_FIELDS, RUNDOWN, RUNTIME } from 'ontime-types';
 
 import { isProduction, websocketUrl } from '../../externals';
-import { CLIENT_LIST, CUSTOM_FIELDS, REPORT, RUNDOWN, RUNTIME } from '../api/constants';
 import { invalidateAllCaches } from '../api/utils';
 import { ontimeQueryClient } from '../queryClient';
 import {
@@ -201,15 +201,15 @@ export const connectSocket = () => {
           const { reload, target } = payload;
           if (reload) {
             invalidateAllCaches();
-          } else if (target === 'RUNDOWN') {
+          } else if (target === RUNDOWN) {
             const { revision } = payload;
             const currentRevision = ontimeQueryClient.getQueryData<RundownCached>(RUNDOWN)?.revision ?? -1;
             if (revision > currentRevision) {
               ontimeQueryClient.invalidateQueries({ queryKey: RUNDOWN });
               ontimeQueryClient.invalidateQueries({ queryKey: CUSTOM_FIELDS });
             }
-          } else if (target === 'REPORT') {
-            ontimeQueryClient.invalidateQueries({ queryKey: REPORT });
+          } else if (target) {
+            ontimeQueryClient.invalidateQueries({ queryKey: target });
           }
           break;
         }

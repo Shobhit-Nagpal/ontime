@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { AUTOMATION } from 'ontime-types';
 
 import { queryRefetchIntervalSlow } from '../../ontimeConfig';
 import { editAutomationSettings, getAutomationSettings } from '../api/automation';
-import { AUTOMATION } from '../api/constants';
 import { logAxiosError } from '../api/utils';
 import { automationPlaceholderSettings } from '../models/AutomationSettings';
 import { ontimeQueryClient } from '../queryClient';

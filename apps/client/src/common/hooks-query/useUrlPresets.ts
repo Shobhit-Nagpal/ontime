@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { URL_PRESETS } from 'ontime-types';
 
 import { queryRefetchIntervalSlow } from '../../ontimeConfig';
-import { URL_PRESETS } from '../api/constants';
 import { getUrlPresets } from '../api/urlPresets';
 
 export default function useUrlPresets() {

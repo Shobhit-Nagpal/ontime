@@ -1,8 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { AuthenticationStatus, CustomFields, OntimeRundown } from 'ontime-types';
+import { AuthenticationStatus, CUSTOM_FIELDS, CustomFields, OntimeRundown, RUNDOWN } from 'ontime-types';
 import { ImportMap } from 'ontime-utils';
 
-import { CUSTOM_FIELDS, RUNDOWN } from '../../../../common/api/constants';
 import { patchData } from '../../../../common/api/db';
 import {
   previewRundown,
