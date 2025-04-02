@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
+import { APP_SETTINGS } from 'ontime-types';
 import { unobfuscate } from 'ontime-utils';
 
 import { queryRefetchIntervalSlow } from '../../ontimeConfig';
-import { APP_SETTINGS } from '../api/constants';
 import { getSettings } from '../api/settings';
 import { ontimePlaceholderSettings } from '../models/OntimeSettings';
 

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
+import { APP_VERSION } from 'ontime-types';
 import { dayInMs } from 'ontime-utils';
 
 import { version } from '../../../../../package.json';
 import { isLocalhost } from '../../externals';
-import { APP_VERSION } from '../api/constants';
 import { getLatestVersion, HasUpdate } from '../api/external';
 
 const placeholder: HasUpdate & { hasUpdates: boolean } = { url: '', version: '', hasUpdates: false };

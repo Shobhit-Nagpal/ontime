@@ -1,0 +1,16 @@
+// keys in tanstack store
+export const APP_INFO = ['appinfo'];
+export const APP_SETTINGS = ['appSettings'];
+export const APP_VERSION = ['appVersion'];
+export const AUTOMATION = ['automation'];
+export const CLIENT_LIST = ['clientList'];
+export const CSS_OVERRIDE = ['cssOverride'];
+export const CUSTOM_FIELDS = ['customFields'];
+export const PROJECT_DATA = ['project'];
+export const PROJECT_LIST = ['projectList'];
+export const REPORT = ['report'];
+export const RUNDOWN = ['rundown'];
+export const RUNTIME = ['runtimeStore'];
+export const SHEET_STATE = ['sheetState'];
+export const URL_PRESETS = ['urlpresets'];
+export const VIEW_SETTINGS = ['viewSettings'];

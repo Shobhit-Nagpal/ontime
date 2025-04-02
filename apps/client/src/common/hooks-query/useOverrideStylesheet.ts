@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
+import { CSS_OVERRIDE } from 'ontime-types';
 
-import { CSS_OVERRIDE, overrideStylesURL } from '../api/constants';
+import { overrideStylesURL } from '../api/constants';
 
 import useViewSettings from './useViewSettings';
 
@@ -31,22 +32,17 @@ export default function useOverrideStylesheet() {
   const { overrideStyles } = viewSettings;
 
   if (overrideStyles) {
-    console.log('overriding style');
     let styleSheet = document.getElementById(scriptTagId);
     if (!styleSheet) {
-      console.log('creating style sheet');
-
       styleSheet = document.createElement('style');
       styleSheet.setAttribute('id', scriptTagId);
-      // styleSheet.rel = 'stylesheet';
+      styleSheet.rel = 'stylesheet';
       document.head.append(styleSheet);
     }
 
     styleSheet!.innerHTML = data ?? '';
     document.head.append(styleSheet);
   } else {
-    console.log('removing style');
-
     document.getElementById(scriptTagId)?.remove();
   }
 

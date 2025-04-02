@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { NormalisedRundown, OntimeRundown, OntimeRundownEntry, RundownCached } from 'ontime-types';
+import { NormalisedRundown, OntimeRundown, OntimeRundownEntry, RUNDOWN, RundownCached } from 'ontime-types';
 
 import { queryRefetchIntervalSlow } from '../../ontimeConfig';
-import { RUNDOWN } from '../api/constants';
 import { fetchNormalisedRundown } from '../api/rundown';
 
 import useProjectData from './useProjectData';
