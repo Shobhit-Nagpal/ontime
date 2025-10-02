@@ -11,6 +11,8 @@ const withPreset = <P extends object>(Component: ComponentType<P>) => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    console.log('data:', data)
+
     // navigate if is alias route
     useEffect(() => {
       if (!data) return;

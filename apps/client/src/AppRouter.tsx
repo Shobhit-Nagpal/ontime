@@ -78,131 +78,131 @@ export default function AppRouter() {
 
   return (
     <React.Suspense fallback={null}>
-      <SentryRoutes>
-        <Route path='/' element={<Navigate to='/timer' />} />
-        <Route
-          path='/timer'
-          element={
-            <ViewLoader>
-              <STimer />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/public'
-          element={
-            <ViewLoader>
-              <SPublic />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/minimal'
-          element={
-            <ViewLoader>
-              <SMinimalTimer />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/clock'
-          element={
-            <ViewLoader>
-              <SClock />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/countdown'
-          element={
-            <ViewLoader>
-              <SCountdown />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/backstage'
-          element={
-            <ViewLoader>
-              <SBackstage />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/studio'
-          element={
-            <ViewLoader>
-              <SStudio />
-            </ViewLoader>
-          }
-        />
-        {/*/!* Lower third cannot have a loading screen *!/*/}
-        <Route path='/lower' element={<SLowerThird />} />
-        <Route
-          path='/timeline'
-          element={
-            <ViewLoader>
-              <STimeline />
-            </ViewLoader>
-          }
-        />
-        <Route
-          path='/info'
-          element={
-            <ViewLoader>
-              <SProjectInfo />
-            </ViewLoader>
-          }
-        />
+        <SentryRoutes>
+          <Route path='/' element={<Navigate to='/timer' />} />
+          <Route
+            path='/timer'
+            element={
+              <ViewLoader>
+                <STimer />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/public'
+            element={
+              <ViewLoader>
+                <SPublic />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/minimal'
+            element={
+              <ViewLoader>
+                <SMinimalTimer />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/clock'
+            element={
+              <ViewLoader>
+                <SClock />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/countdown'
+            element={
+              <ViewLoader>
+                <SCountdown />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/backstage'
+            element={
+              <ViewLoader>
+                <SBackstage />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/studio'
+            element={
+              <ViewLoader>
+                <SStudio />
+              </ViewLoader>
+            }
+          />
+          {/*/!* Lower third cannot have a loading screen *!/*/}
+          <Route path='/lower' element={<SLowerThird />} />
+          <Route
+            path='/timeline'
+            element={
+              <ViewLoader>
+                <STimeline />
+              </ViewLoader>
+            }
+          />
+          <Route
+            path='/info'
+            element={
+              <ViewLoader>
+                <SProjectInfo />
+              </ViewLoader>
+            }
+          />
 
-        {/*/!* Protected Routes *!/*/}
-        <Route path='/editor' element={<Editor />} />
-        <Route path='/cuesheet' element={<PCuesheet />} />
-        <Route
-          path='/op'
-          element={
-            <ViewLoader>
-              <POperator />
-            </ViewLoader>
-          }
-        />
+          {/*/!* Protected Routes *!/*/}
+          <Route path='/editor' element={<Editor />} />
+          <Route path='/cuesheet' element={<PCuesheet />} />
+          <Route
+            path='/op'
+            element={
+              <ViewLoader>
+                <POperator />
+              </ViewLoader>
+            }
+          />
 
-        {/*/!* Protected Routes - Elements *!/*/}
-        <Route
-          path='/rundown'
-          element={
-            <EditorFeatureWrapper>
-              <RundownPanel />
-            </EditorFeatureWrapper>
-          }
-        />
-        <Route
-          path='/timercontrol'
-          element={
-            <EditorFeatureWrapper>
-              <TimerControl />
-            </EditorFeatureWrapper>
-          }
-        />
-        <Route
-          path='/messagecontrol'
-          element={
-            <EditorFeatureWrapper>
-              <MessageControl />
-            </EditorFeatureWrapper>
-          }
-        />
-        <Route
-          path='/log'
-          element={
-            <EditorFeatureWrapper>
-              <Log />
-            </EditorFeatureWrapper>
-          }
-        />
-        {/*/!* Send to default if nothing found *!/*/}
-        <Route path='*' element={<STimer />} />
-      </SentryRoutes>
+          {/*/!* Protected Routes - Elements *!/*/}
+          <Route
+            path='/rundown'
+            element={
+              <EditorFeatureWrapper>
+                <RundownPanel />
+              </EditorFeatureWrapper>
+            }
+          />
+          <Route
+            path='/timercontrol'
+            element={
+              <EditorFeatureWrapper>
+                <TimerControl />
+              </EditorFeatureWrapper>
+            }
+          />
+          <Route
+            path='/messagecontrol'
+            element={
+              <EditorFeatureWrapper>
+                <MessageControl />
+              </EditorFeatureWrapper>
+            }
+          />
+          <Route
+            path='/log'
+            element={
+              <EditorFeatureWrapper>
+                <Log />
+              </EditorFeatureWrapper>
+            }
+          />
+          {/*/!* Send to default if nothing found *!/*/}
+          <Route path='*' element={<STimer />} />
+        </SentryRoutes>
     </React.Suspense>
   );
 }

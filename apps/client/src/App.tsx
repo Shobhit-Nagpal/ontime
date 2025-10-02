@@ -21,18 +21,18 @@ function App() {
       <QueryClientProvider client={ontimeQueryClient}>
         <AppContextProvider>
           <BrowserRouter basename={baseURI}>
-            <div className='App'>
+              <div className='App'>
+                <ErrorBoundary>
+                  <TranslationProvider>
+                    <IdentifyOverlay />
+                    <AppRouter />
+                  </TranslationProvider>
+                </ErrorBoundary>
+                <ReactQueryDevtools initialIsOpen={false} />
+              </div>
               <ErrorBoundary>
-                <TranslationProvider>
-                  <IdentifyOverlay />
-                  <AppRouter />
-                </TranslationProvider>
+                <div id='identify-portal' />
               </ErrorBoundary>
-              <ReactQueryDevtools initialIsOpen={false} />
-            </div>
-            <ErrorBoundary>
-              <div id='identify-portal' />
-            </ErrorBoundary>
           </BrowserRouter>
         </AppContextProvider>
       </QueryClientProvider>

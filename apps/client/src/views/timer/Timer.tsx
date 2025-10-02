@@ -122,106 +122,159 @@ export default function Timer(props: TimerProps) {
   const defaultFormat = getDefaultFormat(settings?.timeFormat);
   const timerOptions = getTimerOptions(defaultFormat, customFields);
 
+  async function togglePictureInPicture() {
+    const timerViewContainer = document.getElementById('timer-view-container');
+    const timerView = document.getElementById('timer-view');
+
+    if (!timerView || !timerViewContainer) return;
+
+    if (window.documentPictureInPicture.window) {
+      console.log('uh?');
+      timerViewContainer.append(timerView);
+      window.documentPictureInPicture.window.close();
+      return;
+    }
+
+    const pipWindow = await window.documentPictureInPicture.requestWindow({
+      width: timerView.clientWidth,
+      height: timerView?.clientHeight + 50,
+    });
+
+    pipWindow.addEventListener('pagehide', (event) => {
+      timerViewContainer.append(timerView);
+    });
+
+    [...document.styleSheets].forEach((styleSheet) => {
+      try {
+        const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+        const style = document.createElement('style');
+
+        style.textContent = cssRules;
+        pipWindow.document.head.appendChild(style);
+      } catch (e) {
+        const link = document.createElement('link');
+
+        link.rel = 'stylesheet';
+        link.type = styleSheet.type;
+        link.media = styleSheet.media.toString();
+        link.href = styleSheet.href ?? '';
+        pipWindow.document.head.appendChild(link);
+      }
+    });
+
+    // Move the player to the Picture-in-Picture window.
+    pipWindow.document.body.append(timerView);
+  }
+
   return (
-    <div
-      className={cx(['stage-timer', isMirrored && 'mirror', showFinished && 'stage-timer--finished'])}
-      data-testid='timer-view'
-    >
-      {general?.projectLogo && <ViewLogo name={general.projectLogo} className='logo' />}
+    <div id='timer-view-container'>
+      <div
+        className={cx(['stage-timer', isMirrored && 'mirror', showFinished && 'stage-timer--finished'])}
+        data-testid='timer-view'
+        id='timer-view'
+      >
+        <button onClick={togglePictureInPicture} className='pip'>
+          Toggle pip
+        </button>
 
-      <ViewParamsEditor viewOptions={timerOptions} />
+        {general?.projectLogo && <ViewLogo name={general.projectLogo} className='logo' />}
 
-      <div className={cx(['blackout', message.timer.blackout && 'blackout--active'])} />
+        <ViewParamsEditor viewOptions={timerOptions} />
 
-      {!hideMessage && (
-        <div className={cx(['message-overlay', showOverlay && 'message-overlay--active'])}>
-          <FitText mode='multi' min={32} max={256} className={cx(['message', message.timer.blink && 'blink'])}>
-            {message.timer.text}
-          </FitText>
-        </div>
-      )}
+        <div className={cx(['blackout', message.timer.blackout && 'blackout--active'])} />
 
-      {showClock && (
-        <div className='clock-container'>
-          <div className='label'>{getLocalizedString('common.time_now')}</div>
-          <SuperscriptTime time={clock} className='clock' />
-        </div>
-      )}
-
-      <div className={cx(['timer-container', message.timer.blink && !showOverlay && 'blink'])}>
-        {showEndMessage ? (
-          <FitText mode='multi' min={64} max={256} className='end-message'>
-            {viewSettings.endMessage}
-          </FitText>
-        ) : (
-          <div
-            className={cx(['timer', !isPlaying && 'timer--paused', showFinished && 'timer--finished'])}
-            style={{
-              fontSize: `${timerFontSize}vw`,
-              '--phase-color': timerColour,
-            }}
-            data-phase={time.phase}
-          >
-            {display}
+        {!hideMessage && (
+          <div className={cx(['message-overlay', showOverlay && 'message-overlay--active'])}>
+            <FitText mode='multi' min={32} max={256} className={cx(['message', message.timer.blink && 'blink'])}>
+              {message.timer.text}
+            </FitText>
           </div>
         )}
-        <div
-          className={cx(['secondary', !secondaryContent && 'secondary--hidden'])}
-          style={{ fontSize: `${externalFontSize}vw` }}
-        >
-          {secondaryContent}
+
+        {showClock && (
+          <div className='clock-container'>
+            <div className='label'>{getLocalizedString('common.time_now')}</div>
+            <SuperscriptTime time={clock} className='clock' />
+          </div>
+        )}
+
+        <div className={cx(['timer-container', message.timer.blink && !showOverlay && 'blink'])}>
+          {showEndMessage ? (
+            <FitText mode='multi' min={64} max={256} className='end-message'>
+              {viewSettings.endMessage}
+            </FitText>
+          ) : (
+            <>
+              <div
+                className={cx(['timer', !isPlaying && 'timer--paused', showFinished && 'timer--finished'])}
+                style={{
+                  fontSize: `${timerFontSize}vw`,
+                  '--phase-color': timerColour,
+                }}
+                data-phase={time.phase}
+              >
+                {display}
+              </div>
+            </>
+          )}
+          <div
+            className={cx(['secondary', !secondaryContent && 'secondary--hidden'])}
+            style={{ fontSize: `${externalFontSize}vw` }}
+          >
+            {secondaryContent}
+          </div>
         </div>
+
+        {showProgressBar && (
+          <MultiPartProgressBar
+            className={cx(['progress-container', !isPlaying && 'progress-container--paused'])}
+            now={time.current}
+            complete={totalTime}
+            normalColor={viewSettings.normalColor}
+            warning={eventNow?.timeWarning}
+            warningColor={viewSettings.warningColor}
+            danger={eventNow?.timeDanger}
+            dangerColor={viewSettings.dangerColor}
+            hideOvertime={!showFinished}
+          />
+        )}
+
+        {!hideCards && (
+          <>
+            <AnimatePresence>
+              {showNow && (
+                <MotionTitleCard
+                  className='event now'
+                  key='now'
+                  variants={titleVariants}
+                  initial='hidden'
+                  animate='visible'
+                  exit='exit'
+                  label='now'
+                  title={nowMain}
+                  secondary={nowSecondary}
+                />
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {showNext && (
+                <MotionTitleCard
+                  className='event next'
+                  key='next'
+                  variants={titleVariants}
+                  initial='hidden'
+                  animate='visible'
+                  exit='exit'
+                  label='next'
+                  title={nextMain}
+                  secondary={nextSecondary}
+                />
+              )}
+            </AnimatePresence>
+          </>
+        )}
       </div>
-
-      {showProgressBar && (
-        <MultiPartProgressBar
-          className={cx(['progress-container', !isPlaying && 'progress-container--paused'])}
-          now={time.current}
-          complete={totalTime}
-          normalColor={viewSettings.normalColor}
-          warning={eventNow?.timeWarning}
-          warningColor={viewSettings.warningColor}
-          danger={eventNow?.timeDanger}
-          dangerColor={viewSettings.dangerColor}
-          hideOvertime={!showFinished}
-        />
-      )}
-
-      {!hideCards && (
-        <>
-          <AnimatePresence>
-            {showNow && (
-              <MotionTitleCard
-                className='event now'
-                key='now'
-                variants={titleVariants}
-                initial='hidden'
-                animate='visible'
-                exit='exit'
-                label='now'
-                title={nowMain}
-                secondary={nowSecondary}
-              />
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {showNext && (
-              <MotionTitleCard
-                className='event next'
-                key='next'
-                variants={titleVariants}
-                initial='hidden'
-                animate='visible'
-                exit='exit'
-                label='next'
-                title={nextMain}
-                secondary={nextSecondary}
-              />
-            )}
-          </AnimatePresence>
-        </>
-      )}
     </div>
   );
 }
