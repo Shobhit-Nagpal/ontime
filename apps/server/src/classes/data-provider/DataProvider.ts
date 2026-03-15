@@ -205,31 +205,33 @@ async function persist() {
 
   profile.calls++;
   if (isTest) return;
+  profile.writes++;
+  await db.write();
 
-  // Cancel any pending write and reschedule
-  if (pendingWrite) {
-    clearTimeout(pendingWrite);
-  }
-
-  // Schedule new write after quiet period
-  pendingWrite = setTimeout(async () => {
-    pendingWrite = null;
-
-    // Wait for any in-progress write to finish first
-    if (activeWrite) {
-      await activeWrite;
-    }
-
-    try {
-      profile.writes++;
-      activeWrite = db.write();
-      await activeWrite;
-    } catch (error) {
-      console.error('Failed to persist database:', error);
-    } finally {
-      activeWrite = null;
-    }
-  }, writeDelayMs);
+//  // Cancel any pending write and reschedule
+//  if (pendingWrite) {
+//    clearTimeout(pendingWrite);
+//  }
+//
+//  // Schedule new write after quiet period
+//  pendingWrite = setTimeout(async () => {
+//    pendingWrite = null;
+//
+//    // Wait for any in-progress write to finish first
+//    if (activeWrite) {
+//      await activeWrite;
+//    }
+//
+//    try {
+//      profile.writes++;
+//      activeWrite = db.write();
+//      await activeWrite;
+//    } catch (error) {
+//      console.error('Failed to persist database:', error);
+//    } finally {
+//      activeWrite = null;
+//    }
+//  }, writeDelayMs);
 }
 
 /**
