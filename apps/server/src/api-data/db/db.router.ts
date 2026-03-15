@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response } from 'express';
 
 import {
   createProjectFile,
@@ -23,8 +24,13 @@ import {
   validateNewFilenameBody,
   validateQuickProject,
 } from './db.validation.js';
+import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
 
 export const router = express.Router();
+
+router.get('/profile', (_req: Request, res: Response) => {
+  res.status(200).json(getDataProvider().getProfile());
+});
 
 router.get('/', currentProjectDownload);
 router.post('/download', validateFilenameBody, projectDownload);

@@ -15,3 +15,9 @@ export type DatabaseModel = {
   customFields: CustomFields;
   automation: AutomationSettings;
 };
+
+export type DebounceProfile = {
+  calls: number;
+  writes: number;
+  callers: Record<string, number>;
+}

@@ -18,10 +18,16 @@ import { shouldCrashDev } from '../../utils/development.js';
 import { isTest } from '../../setup/environment.js';
 
 import { safeMerge } from './DataProvider.utils.js';
+import { DebounceProfile } from 'ontime-types/src/definitions/DataModel.type.js';
 
 type ReadonlyPromise<T> = Promise<Readonly<T>>;
 
 let db = {} as Low<DatabaseModel>;
+let profile: DebounceProfile = {
+  calls: 0,
+  writes: 0,
+  callers: {},
+};
 
 /**
  * Initialises the JSON adapter to persist data to a file
@@ -62,6 +68,7 @@ export function getDataProvider() {
     getProjectRundowns,
     mergeIntoData,
     deleteRundown,
+    getProfile,
   };
 }
 
@@ -180,10 +187,21 @@ async function mergeIntoData(newData: Partial<DatabaseModel>): ReadonlyPromise<D
   return db.data;
 }
 
+function getProfile(): Readonly<DebounceProfile> {
+  return profile;
+}
+
 /**
  * Handles persisting data to file
  */
 async function persist() {
+  // Capture caller: stack lines are [Error, persist, actual caller, ...]
+  const callerLine = new Error().stack?.split('\n')[2]?.trim() ?? '';
+  const callerName = callerLine.match(/at (?:.*\.)?(\w+) \(/)?.[1] ?? callerLine;
+  profile.callers[callerName] = (profile.callers[callerName] ?? 0) + 1;
+
+  profile.calls++;
   if (isTest) return;
+  profile.writes++;
   await db.write();
 }
