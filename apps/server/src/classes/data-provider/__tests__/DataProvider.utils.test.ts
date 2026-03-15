@@ -1,8 +1,7 @@
 import { AutomationSettings, CustomField, DatabaseModel, Settings, TimerLifeCycle, URLPreset } from 'ontime-types';
 
-import { makeNewProject } from '../../../models/dataModel.js';
 import { makeOntimeEvent, makeRundown } from '../../../api-data/rundown/__mocks__/rundown.mocks.js';
-
+import { makeNewProject } from '../../../models/dataModel.js';
 import { safeMerge } from '../DataProvider.utils.js';
 
 const baseDb = makeNewProject('demo');
@@ -72,14 +71,12 @@ describe('safeMerge', () => {
   it('merges the settings key', () => {
     const mergedData = safeMerge(baseDb, {
       settings: {
-        serverPort: 3000,
         language: 'pt',
         version: 'new',
       } as Settings,
     });
     expect(mergedData.settings).toStrictEqual({
       version: 'new',
-      serverPort: 3000,
       operatorKey: null,
       editorKey: null,
       timeFormat: baseDb.settings.timeFormat,

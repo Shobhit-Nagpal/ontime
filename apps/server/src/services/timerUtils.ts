@@ -1,5 +1,5 @@
-import { MaybeNumber, TimerPhase } from 'ontime-types';
-import { dayInMs, isPlaybackActive, MILLIS_PER_HOUR } from 'ontime-utils';
+import { Day, MaybeNumber, TimeOfDay, TimerPhase } from 'ontime-types';
+import { MILLIS_PER_HOUR, checkIsNow, dayInMs, isPlaybackActive } from 'ontime-utils';
 
 import type { RuntimeState } from '../stores/runtimeState.js';
 
@@ -7,6 +7,16 @@ import type { RuntimeState } from '../stores/runtimeState.js';
  * handle events that span over midnight
  */
 export const normaliseEndTime = (start: number, end: number) => (end < start ? end + dayInMs : end);
+
+/**
+ * Checks whether the local wall clock wrapped into a new day
+ * Uses a threshold to distinguish midnight wrap (~23h backward jump)
+ * from DST fall back (~1h backward jump)
+ */
+export function hasCrossedMidnight(previous: TimeOfDay, current: TimeOfDay): boolean {
+  const backwardJump = previous - current;
+  return backwardJump > 12 * MILLIS_PER_HOUR;
+}
 
 /**
  * Calculates expected finish time of a running timer
@@ -98,14 +108,15 @@ export function skippedOutOfEvent(state: RuntimeState, previousTime: number, ski
   const { startedAt, expectedFinish } = state.timer;
   const { clock } = state;
 
-  const hasPassedMidnight = previousTime > dayInMs - skipLimit && clock < skipLimit;
-  const adjustedClock = hasPassedMidnight ? clock + dayInMs : clock;
+  const isInsideEvent = checkIsNow(startedAt, expectedFinish, clock);
+  if (isInsideEvent) return false;
 
-  const timeDifference = previousTime - adjustedClock;
-  const hasSkipped = Math.abs(timeDifference) > skipLimit;
-  const adjustedExpectedFinish = expectedFinish >= startedAt ? expectedFinish : expectedFinish + dayInMs;
+  // we are outside the event, but we need to check if we skipped or just finished normally
+  const timeFromPrevious = Math.abs(previousTime - clock);
+  // account for midnight when checking skips
+  const hasSkipped = Math.min(timeFromPrevious, dayInMs - timeFromPrevious) > skipLimit;
 
-  return hasSkipped && (adjustedClock > adjustedExpectedFinish || adjustedClock < startedAt);
+  return hasSkipped;
 }
 
 /**
@@ -187,9 +198,9 @@ export function getTimerPhase(state: RuntimeState): TimerPhase {
  * Finds the day offset relative to an event start
  * used byt the runtimeState on first start to get correct offsets
  */
-export function findDayOffset(plannedStart: number, clock: number): number {
+export function findDayOffset(plannedStart: number, clock: number): Day {
   const distance = clock - plannedStart;
-  if (distance >= 12 * MILLIS_PER_HOUR) return -1;
-  if (distance < -12 * MILLIS_PER_HOUR) return 1;
-  return 0;
+  if (distance >= 12 * MILLIS_PER_HOUR) return -1 as Day;
+  if (distance < -12 * MILLIS_PER_HOUR) return 1 as Day;
+  return 0 as Day;
 }

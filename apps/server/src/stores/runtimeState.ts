@@ -1,18 +1,23 @@
 import {
-  isOntimeEvent,
+  Day,
+  Duration,
+  Instant,
+  Maybe,
   MaybeNumber,
   MaybeString,
+  Offset,
   OffsetMode,
-  OntimeGroup,
   OntimeEvent,
+  OntimeGroup,
   PlayableEvent,
   Playback,
   Rundown,
-  Offset,
-  runtimeStorePlaceholder,
+  RundownState,
+  TimeOfDay,
   TimerPhase,
   TimerState,
-  RundownState,
+  isOntimeEvent,
+  runtimeStorePlaceholder,
 } from 'ontime-types';
 import {
   calculateDuration,
@@ -23,24 +28,29 @@ import {
   isPlaybackActive,
 } from 'ontime-utils';
 
-import { getTimeObject, timeNow } from '../utils/time.js';
+import { RundownMetadata } from '../api-data/rundown/rundown.types.js';
+import { getPlayableIndexFromTimedIndex } from '../api-data/rundown/rundown.utils.js';
+import * as timeCore from '../lib/time-core/timeCore.js';
 import type { RestorePoint } from '../services/restore-service/restore.type.js';
+import { loadRoll, normaliseRollStart } from '../services/rollUtils.js';
 import {
   findDayOffset,
   getCurrent,
   getExpectedFinish,
   getRuntimeOffset,
   getTimerPhase,
+  hasCrossedMidnight,
 } from '../services/timerUtils.js';
-import { loadRoll, normaliseRollStart } from '../services/rollUtils.js';
 import { timerConfig } from '../setup/config.js';
-import { RundownMetadata } from '../api-data/rundown/rundown.types.js';
-import { getPlayableIndexFromTimedIndex } from '../api-data/rundown/rundown.utils.js';
 
-type ExpectedMetadata = { event: OntimeEvent; accumulatedGap: number; isLinkedToLoaded: boolean } | null;
+type ExpectedMetadata = {
+  event: OntimeEvent;
+  accumulatedGap: number;
+  isLinkedToLoaded: boolean;
+} | null;
 
 export type RuntimeState = {
-  clock: number; // realtime clock
+  clock: TimeOfDay;
   groupNow: OntimeGroup | null;
   eventNow: PlayableEvent | null;
   eventNext: PlayableEvent | null;
@@ -50,9 +60,9 @@ export type RuntimeState = {
   rundown: RundownState;
   // private properties of the timer calculations
   _timer: {
-    forceFinish: MaybeNumber; // whether we should declare an event as finished, will contain the finish time
-    pausedAt: MaybeNumber;
-    secondaryTarget: MaybeNumber;
+    forceFinish: Maybe<TimeOfDay>; // whether we should declare an event as finished, will contain the finish time
+    pausedAt: Maybe<TimeOfDay>;
+    secondaryTarget: Maybe<TimeOfDay>;
     hasFinished: boolean;
   };
   _rundown: {
@@ -61,12 +71,12 @@ export type RuntimeState = {
   _group: ExpectedMetadata;
   _flag: ExpectedMetadata;
   _end: ExpectedMetadata;
-  _startEpoch: MaybeNumber;
-  _startDayOffset: MaybeNumber;
+  _startEpoch: Maybe<Instant>;
+  _startDayOffset: Maybe<Day>;
 };
 
 const runtimeState: RuntimeState = {
-  clock: timeNow(),
+  clock: timeCore.timeOfDayNow(),
   groupNow: null,
   eventNow: null,
   eventNext: null,
@@ -122,7 +132,7 @@ export function clearEventData() {
   runtimeState.rundown.selectedEventIndex = null;
 
   runtimeState.timer.playback = Playback.Stop;
-  runtimeState.clock = timeNow();
+  runtimeState.clock = timeCore.timeOfDayNow();
   runtimeState.timer = { ...runtimeStorePlaceholder.timer };
 
   // when clearing, we maintain the total delay from the rundown
@@ -154,7 +164,7 @@ export function clearState() {
   runtimeState._end = null;
 
   runtimeState.timer.playback = Playback.Stop;
-  runtimeState.clock = timeNow();
+  runtimeState.clock = timeCore.timeOfDayNow();
   runtimeState.timer = { ...runtimeStorePlaceholder.timer };
 
   // when clearing, we maintain the total delay from the rundown
@@ -354,10 +364,13 @@ export function updateLoaded(event?: PlayableEvent): string | undefined {
       if (runtimeState._timer.secondaryTarget !== null) {
         if (runtimeState.eventNow.timeStart < offsetClock && offsetClock < runtimeState.eventNow.timeEnd) {
           // if the event is now, we queue a start
-          runtimeState._timer.secondaryTarget = runtimeState.eventNow.timeStart;
+          runtimeState._timer.secondaryTarget = runtimeState.eventNow.timeStart as TimeOfDay;
           runtimeState.timer.secondaryTimer = runtimeState._timer.secondaryTarget - offsetClock;
         } else {
-          runtimeState._timer.secondaryTarget = normaliseRollStart(runtimeState.eventNow.timeStart, offsetClock);
+          runtimeState._timer.secondaryTarget = normaliseRollStart(
+            runtimeState.eventNow.timeStart,
+            offsetClock,
+          ) as TimeOfDay;
         }
       }
     }
@@ -403,7 +416,9 @@ export function start(state: RuntimeState = runtimeState): boolean {
     return false;
   }
 
-  const [epoch, now] = getTimeObject();
+  const epoch = timeCore.now();
+  const now = timeCore.toTimeOfDay(epoch);
+
   state.clock = now;
   state.timer.secondaryTimer = null;
 
@@ -423,7 +438,7 @@ export function start(state: RuntimeState = runtimeState): boolean {
   state.timer.elapsed = 0;
 
   if (state.rundown.actualStart === null) {
-    state._startDayOffset = findDayOffset(state.eventNow.timeStart, state.clock) + state.eventNow.dayOffset;
+    state._startDayOffset = (findDayOffset(state.eventNow.timeStart, state.clock) + state.eventNow.dayOffset) as Day;
     state.rundown.currentDay = state._startDayOffset;
     state._startEpoch = epoch;
     state.rundown.actualStart = state.clock;
@@ -459,7 +474,7 @@ export function pause(state: RuntimeState = runtimeState): boolean {
   }
 
   state.timer.playback = Playback.Pause;
-  state.clock = timeNow();
+  state.clock = timeCore.timeOfDayNow();
   state._timer.pausedAt = state.clock;
   return true;
 }
@@ -494,7 +509,7 @@ export function addTime(amount: number) {
 
   if (willGoNegative && !runtimeState._timer.hasFinished) {
     // set finished time so side effects are triggered
-    runtimeState._timer.forceFinish = timeNow();
+    runtimeState._timer.forceFinish = timeCore.timeOfDayNow();
   } else {
     const willGoPositive = runtimeState.timer.current < 0 && runtimeState.timer.current + amount > 0;
     if (willGoPositive) {
@@ -524,7 +539,8 @@ export type UpdateResult = {
 export function update(): UpdateResult {
   // 0. there are some things we always do
   const previousClock = runtimeState.clock;
-  const [epoch, now] = getTimeObject();
+  const epoch = timeCore.now();
+  const now = timeCore.toTimeOfDay(epoch);
   runtimeState.clock = now; // we update the clock on every update call
 
   // 1. is playback idle?
@@ -532,16 +548,16 @@ export function update(): UpdateResult {
     return updateIfIdle();
   }
 
-  // if we are playing and playback changes. we tick the current runtime day
-  if (runtimeState._startDayOffset !== null && runtimeState._startEpoch) {
-    runtimeState.rundown.currentDay =
-      runtimeState._startDayOffset + Math.floor((epoch - runtimeState._startEpoch) / dayInMs);
+  // calculate currentDay from epoch (days elapsed since playback was started)
+  if (runtimeState._startEpoch !== null && runtimeState._startDayOffset !== null) {
+    const daysSinceStart = timeCore.daysSinceStart(runtimeState._startEpoch, epoch);
+    runtimeState.rundown.currentDay = runtimeState._startDayOffset + daysSinceStart;
   }
 
   // 2. are we waiting to roll?
   if (runtimeState.timer.playback === Playback.Roll && runtimeState.timer.secondaryTimer !== null) {
-    const hasCrossedMidnight = previousClock > runtimeState.clock;
-    return updateIfWaitingToRoll(hasCrossedMidnight);
+    const clockHasCrossedMidnight = hasCrossedMidnight(previousClock, now);
+    return updateIfWaitingToRoll(clockHasCrossedMidnight);
   }
 
   // 3. at this point we know that we are playing an event
@@ -600,11 +616,17 @@ export function update(): UpdateResult {
     if (hasCrossedMidnight) {
       // if we crossed midnight, we need to update the target
       // this is the same logic from the roll function
-      runtimeState._timer.secondaryTarget = normaliseRollStart(runtimeState.eventNow.timeStart, offsetClock);
+      runtimeState._timer.secondaryTarget = normaliseRollStart(
+        runtimeState.eventNow.timeStart,
+        offsetClock,
+      ) as TimeOfDay;
     }
 
-    runtimeState.timer.secondaryTimer = runtimeState._timer.secondaryTarget - offsetClock;
-    return { hasTimerFinished: false, hasSecondaryTimerFinished: runtimeState.timer.secondaryTimer <= 0 };
+    runtimeState.timer.secondaryTimer = runtimeState._timer.secondaryTarget! - offsetClock;
+    return {
+      hasTimerFinished: false,
+      hasSecondaryTimerFinished: runtimeState.timer.secondaryTimer <= 0,
+    };
   }
 }
 
@@ -620,7 +642,8 @@ export function roll(
   }
 
   // we will need to do some calculations, update the time first
-  const [epoch, now] = getTimeObject();
+  const epoch = timeCore.now();
+  const now = timeCore.toTimeOfDay(epoch);
   runtimeState.clock = now;
 
   // 2. if there is an event armed, we use it
@@ -668,13 +691,27 @@ export function roll(
         runtimeState.rundown.actualGroupStart = plannedStart;
       }
 
+      /**
+       * we need to backdate the actual start and start metadata
+       * to prevent adding unintended offset
+       */
       if (runtimeState.rundown.actualStart === null) {
         runtimeState.rundown.actualStart = plannedStart;
-        runtimeState._startDayOffset = 0;
-        runtimeState._startEpoch = epoch;
+        // use plannedStart (not clock) because actualStart is backdated to plannedStart
+        runtimeState._startDayOffset = (findDayOffset(runtimeState.eventNow.timeStart, plannedStart) +
+          runtimeState.eventNow.dayOffset) as Day;
+        // backdate _startEpoch to when the event conceptually started
+        const timeElapsed = timeCore.elapsedTime(runtimeState.clock, plannedStart as TimeOfDay);
+        runtimeState._startEpoch = timeCore.addDuration(epoch, -timeElapsed as Duration);
+        // calculate currentDay from the backdated epoch
+        runtimeState.rundown.currentDay =
+          runtimeState._startDayOffset + timeCore.daysSinceStart(runtimeState._startEpoch, epoch);
       }
     } else {
-      runtimeState._timer.secondaryTarget = normaliseRollStart(runtimeState.eventNow.timeStart, offsetClock);
+      runtimeState._timer.secondaryTarget = normaliseRollStart(
+        runtimeState.eventNow.timeStart,
+        offsetClock,
+      ) as TimeOfDay;
       runtimeState.timer.secondaryTimer = runtimeState._timer.secondaryTarget - offsetClock;
       runtimeState.timer.phase = TimerPhase.Pending;
     }
@@ -720,12 +757,19 @@ export function roll(
     // there is nothing now, but something coming up
     runtimeState.timer.phase = TimerPhase.Pending;
     // we need to normalise start time in case it is the day after
-    runtimeState._timer.secondaryTarget = normaliseRollStart(runtimeState.eventNow.timeStart, offsetClock);
+    runtimeState._timer.secondaryTarget = normaliseRollStart(runtimeState.eventNow.timeStart, offsetClock) as TimeOfDay;
     runtimeState.timer.secondaryTimer = runtimeState._timer.secondaryTarget - offsetClock;
 
     // preload timer properties
     runtimeState.timer.duration = calculateDuration(runtimeState.eventNow.timeStart, runtimeState.eventNow.timeEnd);
     runtimeState.timer.current = runtimeState.timer.duration;
+
+    // reset rundown state - the rundown will start fresh when the event begins
+    runtimeState.rundown.actualStart = null;
+    runtimeState.rundown.currentDay = null;
+    runtimeState._startDayOffset = null;
+    runtimeState._startEpoch = null;
+
     return { eventId: runtimeState.eventNow.id, didStart: false };
   }
 
@@ -757,8 +801,15 @@ export function roll(
   }
 
   // update metadata
-  runtimeState._startDayOffset = 0;
-  runtimeState._startEpoch = epoch;
+  // use plannedStart (not clock) because actualStart is backdated to plannedStart
+  runtimeState._startDayOffset = (findDayOffset(runtimeState.eventNow.timeStart, plannedStart) +
+    runtimeState.eventNow.dayOffset) as Day;
+  // backdate _startEpoch to when the event conceptually started
+  const timeElapsed = timeCore.elapsedTime(runtimeState.clock, plannedStart as TimeOfDay);
+  runtimeState._startEpoch = timeCore.addDuration(epoch, -timeElapsed as Duration);
+  // calculate currentDay from the backdated epoch
+  runtimeState.rundown.currentDay = (runtimeState._startDayOffset +
+    timeCore.daysSinceStart(runtimeState._startEpoch, epoch)) as Day;
 
   return { eventId: runtimeState.eventNow.id, didStart: true };
 }

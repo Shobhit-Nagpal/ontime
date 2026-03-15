@@ -1,22 +1,20 @@
-import {
-  ProjectData,
-  ViewSettings,
-  DatabaseModel,
-  Settings,
-  CustomFields,
-  URLPreset,
-  AutomationSettings,
-  Rundown,
-  ProjectRundowns,
-} from 'ontime-types';
-
 import type { Low } from 'lowdb';
 import { JSONFilePreset } from 'lowdb/node';
+import {
+  AutomationSettings,
+  CustomFields,
+  DatabaseModel,
+  ProjectData,
+  ProjectRundowns,
+  Rundown,
+  Settings,
+  URLPreset,
+  ViewSettings,
+} from 'ontime-types';
 
-import { isPath } from '../../utils/fileManagement.js';
-import { shouldCrashDev } from '../../utils/development.js';
 import { isTest } from '../../setup/environment.js';
-
+import { shouldCrashDev } from '../../utils/development.js';
+import { isPath } from '../../utils/fileManagement.js';
 import { safeMerge } from './DataProvider.utils.js';
 import { DebounceProfile } from 'ontime-types/src/definitions/DataModel.type.js';
 
@@ -190,9 +188,14 @@ async function mergeIntoData(newData: Partial<DatabaseModel>): ReadonlyPromise<D
 function getProfile(): Readonly<DebounceProfile> {
   return profile;
 }
+// Module-level state for debounced writes
+let pendingWrite: NodeJS.Timeout | null = null;
+let activeWrite: Promise<void> | null = null;
+const writeDelayMs = 3000; // 3 seconds
 
 /**
- * Handles persisting data to file
+ * Handles persisting data to file with trailing-edge debounce
+ * Multiple rapid calls will be coalesced into a single write
  */
 async function persist() {
   // Capture caller: stack lines are [Error, persist, actual caller, ...]
@@ -202,6 +205,48 @@ async function persist() {
 
   profile.calls++;
   if (isTest) return;
-  profile.writes++;
+
+  // Cancel any pending write and reschedule
+  if (pendingWrite) {
+    clearTimeout(pendingWrite);
+  }
+
+  // Schedule new write after quiet period
+  pendingWrite = setTimeout(async () => {
+    pendingWrite = null;
+
+    // Wait for any in-progress write to finish first
+    if (activeWrite) {
+      await activeWrite;
+    }
+
+    try {
+      profile.writes++;
+      activeWrite = db.write();
+      await activeWrite;
+    } catch (error) {
+      console.error('Failed to persist database:', error);
+    } finally {
+      activeWrite = null;
+    }
+  }, writeDelayMs);
+}
+
+/**
+ * Force immediate write of any pending changes
+ */
+export async function flushPendingWrites() {
+  if (isTest) return;
+
+  if (pendingWrite) {
+    clearTimeout(pendingWrite);
+    pendingWrite = null;
+  }
+
+  // Wait for any in-progress write to finish
+  if (activeWrite) {
+    await activeWrite;
+  }
+
   await db.write();
 }

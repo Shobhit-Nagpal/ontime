@@ -1,10 +1,11 @@
+import { Day } from 'ontime-types';
+import { MILLIS_PER_MINUTE, MILLIS_PER_SECOND, isPlaybackActive, millisToString } from 'ontime-utils';
 import { useMemo } from 'react';
 import { IoCheckmarkCircle } from 'react-icons/io5';
-import { isPlaybackActive, MILLIS_PER_MINUTE, MILLIS_PER_SECOND, millisToString } from 'ontime-utils';
 
 import Tooltip from '../../../../common/components/tooltip/Tooltip';
-import { usePlayback } from '../../../../common/hooks/useSocket';
 import useReport from '../../../../common/hooks-query/useReport';
+import { usePlayback } from '../../../../common/hooks/useSocket';
 import { cx } from '../../../../common/utils/styleUtils';
 import { formatDuration, useTimeUntilExpectedStart } from '../../../../common/utils/time';
 
@@ -14,7 +15,7 @@ interface RundownEventChipProps {
   id: string;
   timeStart: number;
   delay: number;
-  dayOffset: number;
+  dayOffset: Day;
   isPast: boolean;
   isLoaded: boolean;
   className: string;
@@ -68,7 +69,7 @@ export default function RundownEventChip({
 interface EventUntilProps {
   timeStart: number;
   delay: number;
-  dayOffset: number;
+  dayOffset: Day;
   totalGap: number;
   isLinkedToLoaded: boolean;
 }

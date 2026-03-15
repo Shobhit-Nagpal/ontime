@@ -1,8 +1,7 @@
+import { deepEqual } from 'fast-equals';
 import {
   EndAction,
   EntryId,
-  isOntimeEvent,
-  isPlayableEvent,
   LogOrigin,
   Offset,
   OffsetMode,
@@ -12,25 +11,24 @@ import {
   TimerLifeCycle,
   TimerPhase,
   TimerState,
+  isOntimeEvent,
+  isPlayableEvent,
 } from 'ontime-types';
 import { millisToString, validatePlayback } from 'ontime-utils';
 
-import { deepEqual } from 'fast-equals';
-
+import { triggerAutomations } from '../../api-data/automation/automation.service.js';
+import { triggerReportEntry } from '../../api-data/report/report.service.js';
+import { getCurrentRundown, getEntryWithId, getRundownMetadata } from '../../api-data/rundown/rundown.dao.js';
+import { RundownMetadata } from '../../api-data/rundown/rundown.types.js';
 import { logger } from '../../classes/Logger.js';
+import { timerConfig } from '../../setup/config.js';
+import { eventStore } from '../../stores/EventStore.js';
 import * as runtimeState from '../../stores/runtimeState.js';
 import type { RuntimeState } from '../../stores/runtimeState.js';
-import { eventStore } from '../../stores/EventStore.js';
-import { triggerReportEntry } from '../../api-data/report/report.service.js';
-import { timerConfig } from '../../setup/config.js';
-import { triggerAutomations } from '../../api-data/automation/automation.service.js';
-import { getCurrentRundown, getEntryWithId, getRundownMetadata } from '../../api-data/rundown/rundown.dao.js';
-
 import { EventTimer } from '../EventTimer.js';
-import type { RestorePoint } from '../restore-service/restore.type.js';
 import { restoreService } from '../restore-service/restore.service.js';
+import type { RestorePoint } from '../restore-service/restore.type.js';
 import { skippedOutOfEvent } from '../timerUtils.js';
-
 import {
   findNextPlayableId,
   findNextPlayableWithCue,
@@ -41,7 +39,6 @@ import {
   getShouldTimerUpdate,
   isNewSecond,
 } from './runtime.utils.js';
-import { RundownMetadata } from '../../api-data/rundown/rundown.types.js';
 
 /**
  * Service manages runtime status of app
@@ -77,11 +74,11 @@ class RuntimeService {
     if (timerPhaseChanged) {
       if (newState.timer.phase === TimerPhase.Warning) {
         process.nextTick(() => {
-          triggerAutomations(TimerLifeCycle.onWarning, newState);
+          triggerAutomations(TimerLifeCycle.onWarning);
         });
       } else if (newState.timer.phase === TimerPhase.Danger) {
         process.nextTick(() => {
-          triggerAutomations(TimerLifeCycle.onDanger, newState);
+          triggerAutomations(TimerLifeCycle.onDanger);
         });
       }
     }
@@ -96,7 +93,7 @@ class RuntimeService {
       } else if (hasTimerFinished) {
         // if the timer has finished, we need to load next and keep rolling
         process.nextTick(() => {
-          triggerAutomations(TimerLifeCycle.onFinish, newState);
+          triggerAutomations(TimerLifeCycle.onFinish);
         });
         this.handleLoadNext();
         this.rollLoaded(newState.offset);
@@ -116,7 +113,7 @@ class RuntimeService {
     // 3. find if we need to process actions related to the timer finishing
     if (newState.timer.playback === Playback.Play && hasTimerFinished) {
       process.nextTick(() => {
-        triggerAutomations(TimerLifeCycle.onFinish, newState);
+        triggerAutomations(TimerLifeCycle.onFinish);
       });
 
       // handle end action if there was a timer playing
@@ -134,7 +131,7 @@ class RuntimeService {
     const shouldUpdateTimer = isNewSecond(this.lastIntegrationTimerValue, newState.timer.current);
     if (shouldUpdateTimer) {
       process.nextTick(() => {
-        triggerAutomations(TimerLifeCycle.onUpdate, newState);
+        triggerAutomations(TimerLifeCycle.onUpdate);
       });
 
       this.lastIntegrationTimerValue = newState.timer.current ?? -1;
@@ -144,7 +141,7 @@ class RuntimeService {
     const shouldUpdateClock = getShouldClockUpdate(this.lastIntegrationClockUpdate, newState.clock);
     if (shouldUpdateClock) {
       process.nextTick(() => {
-        triggerAutomations(TimerLifeCycle.onClock, newState);
+        triggerAutomations(TimerLifeCycle.onClock);
       });
 
       this.lastIntegrationClockUpdate = newState.clock;
@@ -209,10 +206,9 @@ class RuntimeService {
 
     if (success) {
       logger.info(LogOrigin.Playback, `Loaded event with ID ${event.id}`);
-      const newState = runtimeState.getState();
       process.nextTick(() => {
         triggerReportEntry(TimerLifeCycle.onStop, previousState);
-        triggerAutomations(TimerLifeCycle.onLoad, newState);
+        triggerAutomations(TimerLifeCycle.onLoad);
       });
     }
     return success;
@@ -447,7 +443,7 @@ class RuntimeService {
     if (didStart) {
       process.nextTick(() => {
         triggerReportEntry(TimerLifeCycle.onStart, newState);
-        triggerAutomations(TimerLifeCycle.onStart, newState);
+        triggerAutomations(TimerLifeCycle.onStart);
       });
     }
     return didStart;
@@ -500,7 +496,7 @@ class RuntimeService {
     const newState = runtimeState.getState();
     logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
     process.nextTick(() => {
-      triggerAutomations(TimerLifeCycle.onPause, newState);
+      triggerAutomations(TimerLifeCycle.onPause);
     });
   }
 
@@ -520,7 +516,7 @@ class RuntimeService {
       logger.info(LogOrigin.Playback, `Play Mode ${newState.timer.playback.toUpperCase()}`);
       process.nextTick(() => {
         triggerReportEntry(TimerLifeCycle.onStop, previousState);
-        triggerAutomations(TimerLifeCycle.onStop, newState);
+        triggerAutomations(TimerLifeCycle.onStop);
       });
 
       return true;
@@ -548,7 +544,14 @@ class RuntimeService {
     const metadata = getRundownMetadata();
 
     try {
-      runtimeState.roll(rundown, metadata, offset);
+      const result = runtimeState.roll(rundown, metadata, offset);
+      if (result.didStart) {
+        const newState = runtimeState.getState();
+        process.nextTick(() => {
+          triggerReportEntry(TimerLifeCycle.onStart, newState);
+          triggerAutomations(TimerLifeCycle.onStart);
+        });
+      }
     } catch (error) {
       logger.error(LogOrigin.Server, `Roll: ${error}`);
     }
@@ -577,14 +580,14 @@ class RuntimeService {
         logger.info(LogOrigin.Playback, `Loaded event with ID ${result.eventId}`);
         process.nextTick(() => {
           triggerReportEntry(TimerLifeCycle.onStop, previousState);
-          triggerAutomations(TimerLifeCycle.onLoad, newState);
+          triggerAutomations(TimerLifeCycle.onLoad);
         });
       }
 
       if (result.didStart) {
         process.nextTick(() => {
           triggerReportEntry(TimerLifeCycle.onStart, newState);
-          triggerAutomations(TimerLifeCycle.onStart, newState);
+          triggerAutomations(TimerLifeCycle.onStart);
         });
       }
     } catch (error) {

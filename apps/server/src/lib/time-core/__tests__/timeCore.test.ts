@@ -1,0 +1,321 @@
+import { Duration, Instant, TimeOfDay } from 'ontime-types';
+import { dayInMs, MILLIS_PER_HOUR, MILLIS_PER_MINUTE, millisToString } from 'ontime-utils';
+
+import { timeNow } from '../../../utils/time.js';
+import * as timeCore from '../timeCore.js';
+
+beforeAll(() => {
+  vi.useFakeTimers();
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
+
+// TZ is set to Europe/Copenhagen in vitest.global-setup.ts
+// Copenhagen is UTC+1 (CET) in winter and UTC+2 (CEST) in summer
+
+describe('toTimeofDay() converts an instant to local milliseconds since midnight', () => {
+  const testTimes = [
+    { time: '2025-01-15T08:30:00Z', label: 'winter morning' },
+    { time: '2025-06-15T14:00:00Z', label: 'summer afternoon' },
+    { time: '2025-01-01T00:00:00Z', label: 'midnight UTC on new years' },
+    { time: '2025-07-01T23:59:59Z', label: 'just before midnight UTC in summer' },
+    { time: '2025-03-15T12:00:00Z', label: 'noon UTC in winter' },
+    { time: '2025-09-15T12:00:00Z', label: 'noon UTC in summer' },
+  ];
+
+  test.each(testTimes)('produces the correct local time for $label ($time)', ({ time }) => {
+    vi.setSystemTime(time);
+
+    const result = timeCore.toTimeOfDay(timeCore.now());
+    expect(result).toBe(timeNow());
+  });
+
+  it('returns a value in the range [0, dayInMs)', () => {
+    vi.setSystemTime('2025-06-15T23:59:59.999Z');
+
+    const result = timeCore.toTimeOfDay(timeCore.now());
+    expect(result).toBeGreaterThanOrEqual(0);
+    expect(result).toBeLessThan(dayInMs);
+  });
+
+  describe('handles DST transitions in Europe/Copenhagen', () => {
+    it('produces CET time just before spring forward', () => {
+      // 2025-03-30 at 02:00 CET clocks jump to 03:00 CEST
+      // UTC 00:58:18 → Copenhagen CET (UTC+1) → local 01:58:18
+      vi.setSystemTime('2025-03-30T00:58:18Z');
+
+      const result = timeCore.toTimeOfDay(timeCore.now());
+      expect(millisToString(result)).toBe('01:58:18');
+    });
+
+    it('produces CEST time just after spring forward', () => {
+      // UTC 01:00:00 → Copenhagen CEST (UTC+2) → local 03:00:00
+      // 02:00 local does not exist, clocks skip to 03:00
+      vi.setSystemTime('2025-03-30T01:00:00Z');
+
+      const result = timeCore.toTimeOfDay(timeCore.now());
+      expect(millisToString(result)).toBe('03:00:00');
+    });
+
+    it('produces CEST time just before fall back', () => {
+      // 2025-10-26 at 03:00 CEST clocks fall back to 02:00 CET
+      // UTC 00:59:59 → Copenhagen CEST (UTC+2) → local 02:59:59
+      vi.setSystemTime('2025-10-26T00:59:59Z');
+
+      const result = timeCore.toTimeOfDay(timeCore.now());
+      expect(millisToString(result)).toBe('02:59:59');
+    });
+
+    it('produces CET time just after fall back', () => {
+      // UTC 01:00:00 → Copenhagen CET (UTC+1) → local 02:00:00
+      vi.setSystemTime('2025-10-26T01:00:00Z');
+
+      const result = timeCore.toTimeOfDay(timeCore.now());
+      expect(millisToString(result)).toBe('02:00:00');
+    });
+  });
+});
+
+describe('toInstant() converts a time of day back to an instant anchored to a reference day', () => {
+  const testTimes = [
+    { time: '2025-01-15T08:30:00Z', label: 'winter morning' },
+    { time: '2025-06-15T14:00:00Z', label: 'summer afternoon' },
+    { time: '2025-01-01T00:00:00Z', label: 'midnight UTC on new years' },
+    { time: '2025-07-01T23:59:59Z', label: 'just before midnight UTC in summer' },
+    { time: '2025-03-15T12:00:00Z', label: 'noon UTC in winter' },
+    { time: '2025-09-15T12:00:00Z', label: 'noon UTC in summer' },
+  ];
+
+  test.each(testTimes)('roundtrips through toTimeofDay for $label ($time)', ({ time }) => {
+    vi.setSystemTime(time);
+
+    const instant = timeCore.now();
+    const clock = timeCore.toTimeOfDay(instant);
+    expect(timeCore.toInstant(clock, instant)).toBe(instant);
+  });
+
+  describe('roundtrips through DST transitions in Europe/Copenhagen', () => {
+    it('roundtrips just before spring forward', () => {
+      vi.setSystemTime('2025-03-30T00:58:18Z');
+
+      const instant = timeCore.now();
+      const clock = timeCore.toTimeOfDay(instant);
+      expect(timeCore.toInstant(clock, instant)).toBe(instant);
+    });
+
+    it('roundtrips just after spring forward', () => {
+      vi.setSystemTime('2025-03-30T01:00:00Z');
+
+      const instant = timeCore.now();
+      const clock = timeCore.toTimeOfDay(instant);
+      expect(timeCore.toInstant(clock, instant)).toBe(instant);
+    });
+
+    it('roundtrips just before fall back', () => {
+      vi.setSystemTime('2025-10-26T00:59:59Z');
+
+      const instant = timeCore.now();
+      const clock = timeCore.toTimeOfDay(instant);
+      expect(timeCore.toInstant(clock, instant)).toBe(instant);
+    });
+
+    it('roundtrips just after fall back', () => {
+      vi.setSystemTime('2025-10-26T01:00:00Z');
+
+      const instant = timeCore.now();
+      const clock = timeCore.toTimeOfDay(instant);
+      expect(timeCore.toInstant(clock, instant)).toBe(instant);
+    });
+  });
+});
+
+describe('timeSince() returns the duration elapsed since a past point', () => {
+  it('measures elapsed time between two instants', () => {
+    const start = 1000 as Instant;
+    const end = 5000 as Instant;
+    expect(timeCore.timeSince(end, start)).toBe(4000);
+  });
+
+  it('returns negative when the reference is in the future', () => {
+    const start = 5000 as Instant;
+    const end = 1000 as Instant;
+    expect(timeCore.timeSince(end, start)).toBe(-4000);
+  });
+});
+
+describe('timeUntil() returns the duration until a future point', () => {
+  it('measures time remaining until a future instant', () => {
+    const current = 1000 as Instant;
+    const target = 5000 as Instant;
+    expect(timeCore.timeUntil(current, target)).toBe(4000);
+  });
+
+  it('returns negative when the target is in the past', () => {
+    const current = 5000 as Instant;
+    const target = 1000 as Instant;
+    expect(timeCore.timeUntil(current, target)).toBe(-4000);
+  });
+});
+
+describe('addDuration() moves a point in time by a duration', () => {
+  it('moves an instant forward', () => {
+    const instant = 1000 as Instant;
+    const duration = 500 as Duration;
+    expect(timeCore.addDuration(instant, duration)).toBe(1500);
+  });
+
+  it('moves backward with a negative duration', () => {
+    const instant = 1000 as Instant;
+    const duration = -300 as Duration;
+    expect(timeCore.addDuration(instant, duration)).toBe(700);
+  });
+
+  it('moves by the sum of multiple durations', () => {
+    const instant = 1000 as Instant;
+    const durations = [500, -300, 50] as Duration[];
+    expect(timeCore.addDuration(instant, durations)).toBe(1250);
+  });
+
+  it('keeps the instant unchanged with an empty duration list', () => {
+    const instant = 1000 as Instant;
+    expect(timeCore.addDuration(instant, [])).toBe(1000);
+  });
+});
+
+describe('elapsedTime() calculates duration between two times of day', () => {
+  it('calculates elapsed time on the same day', () => {
+    const start = (10 * MILLIS_PER_HOUR) as TimeOfDay; // 10:00
+    const clock = (10 * MILLIS_PER_HOUR + 30 * MILLIS_PER_MINUTE) as TimeOfDay; // 10:30
+    expect(timeCore.elapsedTime(clock, start)).toBe(30 * MILLIS_PER_MINUTE);
+  });
+
+  it('calculates elapsed time when crossing midnight (overnight)', () => {
+    const start = (23 * MILLIS_PER_HOUR + 50 * MILLIS_PER_MINUTE) as TimeOfDay; // 23:50
+    const clock = (21 * MILLIS_PER_MINUTE) as TimeOfDay; // 00:21
+    // From 23:50 to 00:21 = 31 minutes
+    expect(timeCore.elapsedTime(clock, start)).toBe(31 * MILLIS_PER_MINUTE);
+  });
+
+  it('returns 0 when start and clock are the same', () => {
+    const time = (15 * MILLIS_PER_HOUR) as TimeOfDay; // 15:00
+    expect(timeCore.elapsedTime(time, time)).toBe(0);
+  });
+
+  it('calculates correctly for just after midnight', () => {
+    const start = (23 * MILLIS_PER_HOUR + 59 * MILLIS_PER_MINUTE) as TimeOfDay; // 23:59
+    const clock = (1 * MILLIS_PER_MINUTE) as TimeOfDay; // 00:01
+    // From 23:59 to 00:01 = 2 minutes
+    expect(timeCore.elapsedTime(clock, start)).toBe(2 * MILLIS_PER_MINUTE);
+  });
+});
+
+describe('daysSinceStart() calculates full days elapsed since a start epoch', () => {
+  it('returns 0 when current epoch equals start epoch', () => {
+    vi.setSystemTime('2025-01-15T10:00:00Z');
+    const epoch = timeCore.now();
+    expect(timeCore.daysSinceStart(epoch, epoch)).toBe(0);
+  });
+
+  it('returns 0 when less than one day has elapsed', () => {
+    vi.setSystemTime('2025-01-15T10:00:00Z');
+    const startEpoch = timeCore.now();
+
+    vi.setSystemTime('2025-01-15T18:00:00Z'); // 8 hours later
+    const currentEpoch = timeCore.now();
+
+    expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(0);
+  });
+
+  it('returns 1 when crossing midnight once', () => {
+    // Copenhagen is UTC+1 in winter, so 22:50 UTC = 23:50 local
+    vi.setSystemTime('2025-01-15T22:50:00Z'); // 23:50 local
+    const startEpoch = timeCore.now();
+
+    vi.setSystemTime('2025-01-15T23:21:00Z'); // 00:21 local next day
+    const currentEpoch = timeCore.now();
+
+    expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(1);
+  });
+
+  it('returns 2 when crossing midnight twice', () => {
+    vi.setSystemTime('2025-01-15T10:00:00Z');
+    const startEpoch = timeCore.now();
+
+    vi.setSystemTime('2025-01-17T15:00:00Z'); // 2 days + 5 hours later
+    const currentEpoch = timeCore.now();
+
+    expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(2);
+  });
+
+  it('handles overnight start correctly', () => {
+    // Copenhagen is UTC+1 in winter
+    // Start at 23:50 local (22:50 UTC), check at 00:10 local next day (23:10 UTC)
+    vi.setSystemTime('2025-01-15T22:50:00Z'); // 23:50 local
+    const startEpoch = timeCore.now();
+
+    vi.setSystemTime('2025-01-15T23:10:00Z'); // 00:10 local next day
+    const currentEpoch = timeCore.now();
+
+    expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(1);
+  });
+
+  describe('handles DST transitions in Europe/Copenhagen', () => {
+    it('returns 1 when crossing midnight during spring forward (23h day)', () => {
+      // 2025-03-30: clocks spring forward at 02:00 → 03:00 (23h day)
+      // Start at 23:00 local on March 29 (22:00 UTC)
+      vi.setSystemTime('2025-03-29T22:00:00Z'); // 23:00 local CET
+      const startEpoch = timeCore.now();
+
+      // Current at 01:00 local on March 30 (00:00 UTC, still before DST)
+      // This is only 2 hours elapsed, but crosses midnight
+      vi.setSystemTime('2025-03-30T00:00:00Z'); // 01:00 local CET
+      const currentEpoch = timeCore.now();
+
+      // Should be 1 day (crossed midnight) even though <24h elapsed
+      expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(1);
+    });
+
+    it('returns 0 when same calendar day spans 25h during fall back', () => {
+      // 2025-10-26: clocks fall back at 03:00 → 02:00 (25h day)
+      // Start at 01:00 local on October 26 (23:00 UTC Oct 25, CEST still)
+      vi.setSystemTime('2025-10-25T23:00:00Z'); // 01:00 local CEST on Oct 26
+      const startEpoch = timeCore.now();
+
+      // Current at 23:00 local on October 26 (22:00 UTC, now CET)
+      // This is 23 hours elapsed, but same calendar day
+      vi.setSystemTime('2025-10-26T22:00:00Z'); // 23:00 local CET on Oct 26
+      const currentEpoch = timeCore.now();
+
+      // Should be 0 days (same calendar day) even though 23h elapsed
+      expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(0);
+    });
+
+    it('returns 1 when crossing midnight after fall back day', () => {
+      // Start at 23:00 local on October 26 (22:00 UTC, CET)
+      vi.setSystemTime('2025-10-26T22:00:00Z'); // 23:00 local CET
+      const startEpoch = timeCore.now();
+
+      // Current at 01:00 local on October 27 (00:00 UTC)
+      vi.setSystemTime('2025-10-27T00:00:00Z'); // 01:00 local CET
+      const currentEpoch = timeCore.now();
+
+      expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(1);
+    });
+
+    it('handles starting just before spring forward', () => {
+      // Start at 01:58 local on March 30 (00:58 UTC, CET)
+      vi.setSystemTime('2025-03-30T00:58:00Z'); // 01:58 local CET
+      const startEpoch = timeCore.now();
+
+      // Current at 03:02 local on March 30 (01:02 UTC, CEST)
+      // Clock jumped from ~02:00 to 03:00, only 4 real minutes passed
+      vi.setSystemTime('2025-03-30T01:02:00Z'); // 03:02 local CEST
+      const currentEpoch = timeCore.now();
+
+      // Same calendar day
+      expect(timeCore.daysSinceStart(startEpoch, currentEpoch)).toBe(0);
+    });
+  });
+});

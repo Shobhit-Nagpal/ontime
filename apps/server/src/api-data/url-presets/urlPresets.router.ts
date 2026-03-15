@@ -1,10 +1,11 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { RefetchKey, type ErrorResponse, type URLPreset } from 'ontime-types';
+import { type ErrorResponse, RefetchKey, type URLPreset } from 'ontime-types';
 import { getErrorMessage } from 'ontime-utils';
+
+import { sendRefetch } from '../../adapters/WebsocketAdapter.js';
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
 import { validateNewPreset, validatePresetParam, validateUpdatePreset } from './urlPresets.validation.js';
-import { sendRefetch } from '../../adapters/WebsocketAdapter.js';
 
 export const router = express.Router();
 
@@ -43,18 +44,24 @@ router.post('/', validateNewPreset, async (req: Request, res: Response<URLPreset
 router.put('/:alias', validateUpdatePreset, async (req: Request, res: Response<URLPreset[] | ErrorResponse>) => {
   try {
     const alias = req.params.alias;
+    const currentPresets = getDataProvider().getUrlPresets();
+    const existingPreset = currentPresets.find((preset) => preset.alias === alias);
+    if (!existingPreset) {
+      throw new Error(`Preset with alias ${alias} does not exist.`);
+    }
+
     const updatedPreset: URLPreset = {
       enabled: req.body.enabled,
       alias: req.body.alias,
       target: req.body.target,
       search: req.body.search,
+      options: req.body.options ?? existingPreset.options,
     };
 
     if (alias !== updatedPreset.alias) {
       throw new Error('Changing alias is not permitted');
     }
 
-    const currentPresets = getDataProvider().getUrlPresets();
     const newPresets = currentPresets.map((preset) => (preset.alias === alias ? updatedPreset : preset));
 
     // Update the URL presets in the data provider

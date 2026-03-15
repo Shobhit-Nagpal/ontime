@@ -1,5 +1,6 @@
-import { CSSProperties, memo, RefObject, SyntheticEvent } from 'react';
+import { Day } from 'ontime-types';
 import { MILLIS_PER_MINUTE, MILLIS_PER_SECOND } from 'ontime-utils';
+import { CSSProperties, RefObject, SyntheticEvent, memo } from 'react';
 
 import DelayIndicator from '../../../common/components/delay-indicator/DelayIndicator';
 import { useLongPress } from '../../../common/hooks/useLongPress';
@@ -20,7 +21,7 @@ interface OperatorEventProps {
   timeStart: number;
   duration: number;
   delay: number;
-  dayOffset: number;
+  dayOffset: Day;
   isLinkedToLoaded: boolean;
   isSelected: boolean;
   isPast: boolean;
@@ -138,7 +139,7 @@ interface OperatorEventScheduleProps {
   isPast: boolean;
   isSelected: boolean;
   delay: number;
-  dayOffset: number;
+  dayOffset: Day;
   totalGap: number;
   isLinkedToLoaded: boolean;
 }
@@ -173,7 +174,7 @@ function OperatorEventSchedule({
 interface TimeUntilProps {
   timeStart: number;
   delay: number;
-  dayOffset: number;
+  dayOffset: Day;
   totalGap: number;
   isLinkedToLoaded: boolean;
 }

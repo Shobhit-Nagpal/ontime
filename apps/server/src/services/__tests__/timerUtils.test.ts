@@ -1,16 +1,19 @@
-import { dayInMs, MILLIS_PER_HOUR, millisToString } from 'ontime-utils';
-import { EndAction, Playback, TimeStrategy, TimerPhase, TimerType } from 'ontime-types';
+import { EndAction, Playback, TimeOfDay, TimeStrategy, TimerPhase, TimerType } from 'ontime-types';
+import { MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND, dayInMs, millisToString } from 'ontime-utils';
 
+import type { RuntimeState } from '../../stores/runtimeState.js';
 import {
   findDayOffset,
   getCurrent,
   getExpectedFinish,
   getRuntimeOffset,
   getTimerPhase,
+  hasCrossedMidnight,
   normaliseEndTime,
   skippedOutOfEvent,
 } from '../timerUtils.js';
-import type { RuntimeState } from '../../stores/runtimeState.js';
+
+const asTimeOfDay = (value: number): RuntimeState['clock'] => value as RuntimeState['clock'];
 
 describe('getExpectedFinish()', () => {
   it('is null if we havent started', () => {
@@ -537,6 +540,55 @@ describe('getExpectedFinish() and getCurrentTime() combined', () => {
   });
 });
 
+describe('hasCrossedMidnight()', () => {
+  it('returns true when clock wraps from late to early', () => {
+    const previous = (23 * MILLIS_PER_HOUR + 59 * MILLIS_PER_MINUTE) as TimeOfDay; // 23:59
+    const current = (1 * MILLIS_PER_MINUTE) as TimeOfDay; // 00:01
+    expect(hasCrossedMidnight(previous, current)).toBe(true);
+  });
+
+  it('returns false when clock moves forward on the same day', () => {
+    const previous = (10 * MILLIS_PER_HOUR) as TimeOfDay; // 10:00
+    const current = (10 * MILLIS_PER_HOUR + 5 * MILLIS_PER_MINUTE) as TimeOfDay; // 10:05
+    expect(hasCrossedMidnight(previous, current)).toBe(false);
+  });
+
+  it('returns false when clock value is unchanged', () => {
+    const time = (15 * MILLIS_PER_HOUR) as TimeOfDay; // 15:00
+    expect(hasCrossedMidnight(time, time)).toBe(false);
+  });
+
+  describe('DST transitions', () => {
+    it('returns false during DST fall back (~1h backward jump)', () => {
+      // During fall back, clock goes from 02:59 → 02:00 (1h backward)
+      const previous = (2 * MILLIS_PER_HOUR + 59 * MILLIS_PER_MINUTE) as TimeOfDay; // 02:59
+      const current = (2 * MILLIS_PER_HOUR) as TimeOfDay; // 02:00
+      expect(hasCrossedMidnight(previous, current)).toBe(false);
+    });
+
+    it('returns true at actual midnight (~23h backward jump)', () => {
+      // Actual midnight crossing: 23:59 → 00:01 (~23h58m backward)
+      const previous = (23 * MILLIS_PER_HOUR + 59 * MILLIS_PER_MINUTE) as TimeOfDay; // 23:59
+      const current = (1 * MILLIS_PER_MINUTE) as TimeOfDay; // 00:01
+      expect(hasCrossedMidnight(previous, current)).toBe(true);
+    });
+
+    it('returns false for small backward jumps near midnight boundary', () => {
+      // Edge case: 12h backward is NOT a midnight cross
+      const previous = (12 * MILLIS_PER_HOUR) as TimeOfDay; // 12:00
+      const current = (0 * MILLIS_PER_HOUR) as TimeOfDay; // 00:00
+      expect(hasCrossedMidnight(previous, current)).toBe(false);
+    });
+
+    it('returns true for backward jumps exceeding 12h', () => {
+      // 12h + 1ms backward IS a midnight cross
+      const previous = (12 * MILLIS_PER_HOUR + 1) as TimeOfDay; // 12:00:00.001
+      const current = (0 * MILLIS_PER_HOUR) as TimeOfDay; // 00:00
+      expect(hasCrossedMidnight(previous, current)).toBe(true);
+    });
+  });
+});
+
 describe('skippedOutOfEvent()', () => {
   const testSkipLimit = 32;
   it('does not consider an event end as a skip', () => {
@@ -554,7 +606,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock += testSkipLimit;
+    state.clock = asTimeOfDay(state.clock + testSkipLimit);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
   });
 
@@ -574,7 +626,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock += testSkipLimit;
+    state.clock = asTimeOfDay(state.clock + testSkipLimit);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
   });
 
@@ -593,7 +645,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock = testSkipLimit - 2;
+    state.clock = asTimeOfDay(testSkipLimit - 2);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
   });
 
@@ -612,7 +664,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock -= testSkipLimit;
+    state.clock = asTimeOfDay(state.clock - testSkipLimit);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
   });
 
@@ -632,7 +684,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock += testSkipLimit + 1;
+    state.clock = asTimeOfDay(state.clock + testSkipLimit + 1);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(true);
   });
 
@@ -652,7 +704,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock -= testSkipLimit + 1;
+    state.clock = asTimeOfDay(state.clock - testSkipLimit - 1);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(true);
   });
 
@@ -671,7 +723,7 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock = testSkipLimit - 2;
+    state.clock = asTimeOfDay(testSkipLimit - 2);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(true);
   });
 
@@ -690,8 +742,46 @@ describe('skippedOutOfEvent()', () => {
 
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(false);
 
-    state.clock -= testSkipLimit + 1;
+    state.clock = asTimeOfDay(state.clock - testSkipLimit - 1);
     expect(skippedOutOfEvent(state, previousTime, testSkipLimit)).toBe(true);
+  });
+
+  it('handles events that cross midnight', () => {
+    const startedAt = 23 * MILLIS_PER_HOUR + 50 * MILLIS_PER_MINUTE; // 23:50
+    const expectedFinish = 1 * MILLIS_PER_HOUR + 50 * MILLIS_PER_MINUTE; // 01:50
+    const clock = 14 * MILLIS_PER_MINUTE + 47 * MILLIS_PER_SECOND; // 00:14:47
+    const previousTime = clock - 1021; // ~1 second ago
+
+    const state = {
+      clock,
+      timer: {
+        expectedFinish,
+        startedAt,
+      },
+    } as RuntimeState;
+
+    // Even though clock < startedAt numerically (00:14 < 23:50),
+    // we're inside the overnight event, so this should NOT be a skip
+    expect(skippedOutOfEvent(state, previousTime, 1000)).toBe(false);
+  });
+
+  it('correctly detects skip out of an event that crosses midnight', () => {
+    // Event 23:50-01:50, clock jumps to 02:00 (outside event)
+    const startedAt = 23 * MILLIS_PER_HOUR + 50 * MILLIS_PER_MINUTE; // 23:50
+    const expectedFinish = 1 * MILLIS_PER_HOUR + 50 * MILLIS_PER_MINUTE; // 01:50
+    const previousTime = 1 * MILLIS_PER_HOUR + 49 * MILLIS_PER_MINUTE; // 01:49
+    const clock = 2 * MILLIS_PER_HOUR; // 02:00 (outside event)
+
+    const state = {
+      clock,
+      timer: {
+        expectedFinish,
+        startedAt,
+      },
+    } as RuntimeState;
+
+    // Clock jumped from 01:49 to 02:00 (11 min skip) and is now outside the event
+    expect(skippedOutOfEvent(state, previousTime, 1000)).toBe(true);
   });
 });
 
@@ -1195,7 +1285,7 @@ describe('getTimerPhase()', () => {
     expect(phase).toBe(TimerPhase.Warning);
   });
 
-  it('it default if the timer is playing and there is none of the above', () => {
+  it('is default if the timer is playing and there is none of the above', () => {
     const state = {
       timer: {
         addedTime: 0,

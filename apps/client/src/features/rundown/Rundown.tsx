@@ -1,22 +1,21 @@
-import { type HTMLProps, forwardRef, Fragment, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { TbFlagFilled } from 'react-icons/tb';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { closestCenter, DndContext } from '@dnd-kit/core';
+import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import {
   type EntryId,
+  Playback,
   type Rundown as RundownType,
+  SupportedEntry,
   isOntimeEvent,
   isOntimeGroup,
-  Playback,
-  SupportedEntry,
 } from 'ontime-types';
+import { Fragment, type HTMLProps, forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TbFlagFilled } from 'react-icons/tb';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 import { useEntryActionsContext } from '../../common/context/EntryActionsContext';
 import { useEntryCopy } from '../../common/stores/entryCopyStore';
-import { lastMetadataKey, RundownMetadataObject } from '../../common/utils/rundownMetadata';
+import { RundownMetadataObject, lastMetadataKey } from '../../common/utils/rundownMetadata';
 import { AppMode } from '../../ontimeConfig';
-
 import QuickAddButtons from './entry-editor/quick-add-buttons/QuickAddButtons';
 import QuickAddInline from './entry-editor/quick-add-cursor/QuickAddInline';
 import { useRundownCommands } from './hooks/useRundownCommands';
@@ -26,13 +25,12 @@ import RundownGroup from './rundown-group/RundownGroup';
 import RundownGroupEnd from './rundown-group/RundownGroupEnd';
 import { filterVisibleEntries, makeSortableList } from './rundown.utils';
 import RundownEmpty from './RundownEmpty';
+import RundownEntry from './RundownEntry';
 import { useCollapsedGroups } from './useCollapsedGroups';
 import { useEditorFollowMode } from './useEditorFollowMode';
 import { useEventSelection } from './useEventSelection';
 
 import style from './Rundown.module.scss';
-
-const RundownEntry = lazy(() => import('./RundownEntry'));
 
 interface RundownProps {
   entries: RundownType['entries'];

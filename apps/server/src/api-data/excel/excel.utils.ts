@@ -1,5 +1,5 @@
 import { CustomFieldKey, CustomFields, MaybeNumber, OntimeEntry, Rundown } from 'ontime-types';
-import { checkRegex, customFieldLabelToKey, ImportMap, millisToString } from 'ontime-utils';
+import { ImportMap, checkRegex, customFieldLabelToKey, millisToString } from 'ontime-utils';
 
 /**
  * Receives an import map which contains custom field labels and a custom fields object
@@ -33,10 +33,11 @@ export function getCustomFieldData(
     // we lower case the excel key to make it easier to match
     const columnNameInExcel = importMap.custom[ontimeLabel].toLowerCase();
     const maybeExistingColour = existingCustomFields[keyInCustomFields]?.colour ?? '';
+    const maybeExistingType = existingCustomFields[keyInCustomFields]?.type ?? 'text';
 
     // 1. add the custom field to the merged custom fields
     mergedCustomFields[keyInCustomFields] = {
-      type: 'text', // we currently only support text custom fields
+      type: maybeExistingType,
       colour: maybeExistingColour,
       label: ontimeLabel,
     };

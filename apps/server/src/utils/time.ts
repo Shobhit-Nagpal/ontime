@@ -1,4 +1,4 @@
-import { MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND, pad, parseUserTime, isISO8601 } from 'ontime-utils';
+import { MILLIS_PER_HOUR, MILLIS_PER_MINUTE, MILLIS_PER_SECOND, isISO8601, pad, parseUserTime } from 'ontime-utils';
 
 export const timeFormat = 'HH:mm';
 export const timeFormatSeconds = 'HH:mm:ss';
@@ -73,19 +73,4 @@ export function timeNow() {
   elapsed += now.getSeconds() * 1000;
   elapsed += now.getMilliseconds();
   return elapsed;
-}
-
-/**
- * Get current time from system
- * @returns [number, number] - [epoch time, milliseconds since midnight]
- */
-export function getTimeObject(): [number, number] {
-  const now = new Date();
-
-  // extract milliseconds since midnight
-  let elapsed = now.getHours() * 3600000;
-  elapsed += now.getMinutes() * 60000;
-  elapsed += now.getSeconds() * 1000;
-  elapsed += now.getMilliseconds();
-  return [now.getTime(), elapsed];
 }

@@ -1,3 +1,6 @@
+import { useTableNav } from '@table-nav/react';
+import { ColumnDef, Table, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { OntimeEntry, TimeField, isOntimeDelay, isOntimeGroup, isOntimeMilestone } from 'ontime-types';
 import { ComponentProps, memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   ContextProp,
@@ -7,22 +10,18 @@ import {
   TableVirtuoso,
   TableVirtuosoHandle,
 } from 'react-virtuoso';
-import { useTableNav } from '@table-nav/react';
-import { ColumnDef, getCoreRowModel, Table, useReactTable } from '@tanstack/react-table';
-import { isOntimeDelay, isOntimeGroup, isOntimeMilestone, OntimeEntry, TimeField } from 'ontime-types';
 
 import EmptyPage from '../../../common/components/state/EmptyPage';
 import EmptyTableBody from '../../../common/components/state/EmptyTableBody';
 import { useEntryActionsContext } from '../../../common/context/EntryActionsContext';
-import { useSelectedEventId } from '../../../common/hooks/useSocket';
 import { useFlatRundownWithMetadata } from '../../../common/hooks-query/useRundown';
+import { useSelectedEventId } from '../../../common/hooks/useSocket';
 import type { ExtendedEntry } from '../../../common/utils/rundownMetadata';
-import { usePersistedRundownOptions } from '../../../features/rundown/rundown.options';
 import EditorTableSettings from '../../../features/rundown/rundown-table/EditorTableSettings';
+import { usePersistedRundownOptions } from '../../../features/rundown/rundown.options';
 import { useEventSelection } from '../../../features/rundown/useEventSelection';
 import { AppMode } from '../../../ontimeConfig';
 import { usePersistedCuesheetOptions } from '../cuesheet.options';
-
 import { CuesheetHeader, SortableCuesheetHeader } from './cuesheet-table-elements/CuesheetHeader';
 import DelayRow from './cuesheet-table-elements/DelayRow';
 import EventRow from './cuesheet-table-elements/EventRow';
@@ -34,13 +33,24 @@ import { useColumnOrder, useColumnSizes, useColumnVisibility } from './useColumn
 
 import style from './CuesheetTable.module.scss';
 
-interface CuesheetTableProps {
+type CuesheetTableBaseProps = {
   columns: ColumnDef<ExtendedEntry>[];
   cuesheetMode: AppMode;
-  tableRoot?: 'editor' | 'cuesheet';
-}
+};
 
-export default function CuesheetTable({ columns, cuesheetMode, tableRoot = 'cuesheet' }: CuesheetTableProps) {
+type EditorCuesheetTableProps = CuesheetTableBaseProps & {
+  tableRoot: 'editor';
+  setCuesheetMode?: undefined;
+};
+
+type ViewCuesheetTableProps = CuesheetTableBaseProps & {
+  tableRoot: 'cuesheet';
+  setCuesheetMode: (mode: AppMode) => void;
+};
+
+type CuesheetTableProps = EditorCuesheetTableProps | ViewCuesheetTableProps;
+
+export default function CuesheetTable({ columns, cuesheetMode, tableRoot, setCuesheetMode }: CuesheetTableProps) {
   const { data, status } = useFlatRundownWithMetadata();
   const { updateEntry, updateTimer } = useEntryActionsContext();
 
@@ -206,17 +216,25 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot = 'cues
     return <EmptyPage text='Loading...' />;
   }
 
-  // control components need different implementations for handling permissions
-  const TableRootSettings = tableRoot === 'editor' ? EditorTableSettings : CuesheetTableSettings;
-
   return (
     <>
-      <TableRootSettings
-        columns={allLeafColumns}
-        handleResetResizing={resetColumnResizing}
-        handleResetReordering={resetColumnOrder}
-        handleClearToggles={setAllVisible}
-      />
+      {tableRoot === 'editor' ? (
+        <EditorTableSettings
+          columns={allLeafColumns}
+          handleResetResizing={resetColumnResizing}
+          handleResetReordering={resetColumnOrder}
+          handleClearToggles={setAllVisible}
+        />
+      ) : (
+        <CuesheetTableSettings
+          columns={allLeafColumns}
+          cuesheetMode={cuesheetMode}
+          setCuesheetMode={setCuesheetMode}
+          handleResetResizing={resetColumnResizing}
+          handleResetReordering={resetColumnOrder}
+          handleClearToggles={setAllVisible}
+        />
+      )}
       <TableVirtuoso
         ref={virtuosoRef}
         data={data}
@@ -232,7 +250,6 @@ export default function CuesheetTable({ columns, cuesheetMode, tableRoot = 'cues
     </>
   );
 }
-
 
 interface CuesheetVirtuosoContext {
   columnSizeVars: { [key: string]: number };

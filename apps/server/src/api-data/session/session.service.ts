@@ -1,16 +1,17 @@
 import { GetInfo, LinkOptions, OntimeView, SessionStats } from 'ontime-types';
 
-import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
-import { publicDir } from '../../setup/index.js';
 import { socket } from '../../adapters/WebsocketAdapter.js';
 import { getLastRequest } from '../../api-integration/integration.controller.js';
+import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
+import { portManager } from '../../classes/port-manager/PortManager.js';
+import { password, routerPrefix } from '../../externals.js';
+import { ONTIME_VERSION } from '../../ONTIME_VERSION.js';
 import { getCurrentProject } from '../../services/project-service/ProjectService.js';
 import { runtimeService } from '../../services/runtime-service/runtime.service.js';
+import { publicDir } from '../../setup/index.js';
+import { hashPassword } from '../../utils/hash.js';
 import { getNetworkInterfaces } from '../../utils/network.js';
 import { getTimezoneLabel } from '../../utils/time.js';
-import { password, routerPrefix } from '../../externals.js';
-import { hashPassword } from '../../utils/hash.js';
-import { ONTIME_VERSION } from '../../ONTIME_VERSION.js';
 
 const startedAt = new Date();
 
@@ -37,7 +38,8 @@ export async function getSessionStats(): Promise<SessionStats> {
  * Adds business logic to gathering data for the info endpoint
  */
 export async function getInfo(): Promise<GetInfo> {
-  const { version, serverPort } = getDataProvider().getSettings();
+  const { version } = getDataProvider().getSettings();
+  const { port } = portManager.getPort();
 
   // get nif and inject localhost
   const ni = getNetworkInterfaces();
@@ -46,7 +48,7 @@ export async function getInfo(): Promise<GetInfo> {
   return {
     networkInterfaces: ni,
     version,
-    serverPort,
+    serverPort: port,
     publicDir: publicDir.root,
   };
 }

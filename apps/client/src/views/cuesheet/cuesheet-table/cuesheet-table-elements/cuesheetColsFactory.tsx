@@ -1,13 +1,13 @@
-import { useCallback } from 'react';
 import { CellContext, ColumnDef } from '@tanstack/react-table';
-import { CustomFields, isOntimeDelay, isOntimeEvent, TimeStrategy, URLPreset } from 'ontime-types';
+import { CustomFields, TimeStrategy, URLPreset, isOntimeDelay, isOntimeEvent } from 'ontime-types';
 import { millisToString } from 'ontime-utils';
+import { useCallback } from 'react';
 
 import DelayIndicator from '../../../../common/components/delay-indicator/DelayIndicator';
 import type { ExtendedEntry } from '../../../../common/utils/rundownMetadata';
 import { formatDuration, formatTime } from '../../../../common/utils/time';
 import { AppMode } from '../../../../ontimeConfig';
-
+import { getCuesheetColumnAccessPolicy } from '../../cuesheet.policies';
 import DurationInput from './DurationInput';
 import EditableImage from './EditableImage';
 import FlagCell from './FlagCell';
@@ -257,15 +257,7 @@ export function makeCuesheetColumns(
   preset: URLPreset | undefined,
 ): ColumnDef<ExtendedEntry>[] {
   const columnsDef: ColumnDef<ExtendedEntry>[] = [];
-  const modeAllowsWrite = cuesheetMode === AppMode.Edit;
-  const fullRead = preset ? preset.options?.read === 'full' : true;
-  const fullWrite = preset ? preset.options?.write === 'full' : true;
-  const canWriteKeys = preset?.options?.write ? new Set(preset.options.write.split(',')) : new Set<string>();
-  const canReadKeys = preset?.options?.read ? new Set(preset.options.read.split(',')) : new Set<string>();
-
-  // helpers to check read/write for a given key
-  const canRead = (key: string) => fullRead || canReadKeys.has(key);
-  const canWrite = (key: string) => modeAllowsWrite && (fullWrite || canWriteKeys.has(key));
+  const { canRead, canWrite } = getCuesheetColumnAccessPolicy(preset, cuesheetMode);
 
   if (canRead('flag')) {
     columnsDef.push({

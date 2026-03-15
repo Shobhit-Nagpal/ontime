@@ -1,15 +1,16 @@
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 
-import { publicFiles } from '../../setup/index.js';
 import { isTest } from '../../setup/environment.js';
-import { isPath } from '../../utils/fileManagement.js';
+import { publicFiles } from '../../setup/index.js';
 import { shouldCrashDev } from '../../utils/development.js';
+import { isPath } from '../../utils/fileManagement.js';
 
 interface AppState {
   projectName?: string;
   rundownId?: string;
   showWelcomeDialog?: boolean;
+  serverPort?: number;
 }
 
 const adapter = new JSONFile<AppState>(publicFiles.appState);
@@ -60,4 +61,14 @@ export async function setShowWelcomeDialog(show: boolean): Promise<boolean> {
   config.data.showWelcomeDialog = show;
   await config.write();
   return show;
+}
+
+export async function getServerPort(): Promise<number | undefined> {
+  await config.read();
+  return config.data.serverPort;
+}
+
+export async function setServerPort(port: number): Promise<void> {
+  config.data.serverPort = port;
+  await config.write();
 }

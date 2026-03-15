@@ -1,3 +1,4 @@
+import { Day, EndAction, Playback, TimeStrategy, TimerType } from 'ontime-types';
 import { memo } from 'react';
 import {
   IoArrowDown,
@@ -10,7 +11,6 @@ import {
   IoTime,
 } from 'react-icons/io5';
 import { LuArrowDownToLine } from 'react-icons/lu';
-import { EndAction, Playback, TimerType, TimeStrategy } from 'ontime-types';
 
 import Tooltip from '../../../common/components/tooltip/Tooltip';
 import { cx } from '../../../common/utils/styleUtils';
@@ -18,7 +18,6 @@ import { AppMode } from '../../../ontimeConfig';
 import TitleEditor from '../common/TitleEditor';
 import TimeInputFlow from '../time-input-flow/TimeInputFlow';
 import { useEditorFollowMode } from '../useEditorFollowMode';
-
 import RundownEventChip from './composite/RundownEventChip';
 import EventBlockPlayback from './composite/RundownEventPlayback';
 import EventBlockProgressBar from './composite/RundownEventProgressBar';
@@ -44,7 +43,7 @@ interface RundownEventInnerProps {
   loaded: boolean;
   playback?: Playback;
   isRolling: boolean;
-  dayOffset: number;
+  dayOffset: Day;
   isPast: boolean;
   totalGap: number;
   isLinkedToLoaded: boolean;

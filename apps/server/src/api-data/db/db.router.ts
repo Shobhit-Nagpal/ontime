@@ -17,11 +17,11 @@ import {
 } from './db.controller.js';
 import { uploadProjectFile } from './db.middleware.js';
 import {
-  validateNewProject,
-  validatePatchProject,
   validateFilenameBody,
   validateFilenameParam,
   validateNewFilenameBody,
+  validateNewProject,
+  validatePatchProject,
   validateQuickProject,
 } from './db.validation.js';
 import { getDataProvider } from '../../classes/data-provider/DataProvider.js';
